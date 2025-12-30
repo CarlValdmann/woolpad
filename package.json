@@ -1,0 +1,20 @@
+{
+  "name": "heegelmotiivid-pro",
+  "version": "2.0.0",
+  "description": "Professional crochet pattern editor",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "live-server --port=8000"
+  },
+  "keywords": [
+    "crochet",
+    "pattern",
+    "editor",
+    "heegel",
+    "handcraft",
+    "crafts"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

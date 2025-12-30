@@ -1,0 +1,128 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   🧵 HEEGELMOTIIVIDE REDAKTOR - PROFESSIONAL                 ║
+║                                                               ║
+║   Tere tulemast! Oled just alla laadinud professionaalse     ║
+║   heegelmotiivide redaktori.                                 ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📋 KIIRE ALUSTAMINE
+═══════════════════
+
+1. AVA VS CODE'IS
+   - Ava VS Code
+   - File → Open Folder → vali see kaust
+
+2. INSTALLI LIVE SERVER
+   - Vajuta Ctrl+Shift+X
+   - Otsi "Live Server"
+   - Kliki Install
+
+3. KÄIVITA
+   - Ava index.html
+   - Parem-klõps
+   - "Open with Live Server"
+
+4. ARENДА
+   - Muuda index.html
+   - Salvesta (Ctrl+S)
+   - Vaata tulemust brauseris
+
+
+📚 DOKUMENTATSIOON
+═══════════════════
+
+→ README.md          Projekti ülevaade ja funktsioonid
+→ QUICKSTART.md      Kiirkäivitus juhend (ALUSTA SIIT!)
+→ DEVELOPMENT.md     Arenduse juhend ja best practices
+→ TODO.md           Tulevased täiendused
+→ docs/API.md       API dokumentatsioon
+
+
+🎯 PÕHIFUNKTSIOONID
+═══════════════════
+
+✅ 14 erinevat heegelpistete tüüpi
+✅ Automaatne mustri jätkamine (pärast 3 silmust)
+✅ Mitmekihiline süsteem (Rounds/Layers)
+✅ Sümmeetria režiimid (peegel, radiaalne)
+✅ Professionaalne UI (vertikaalne toolbar + sidebar)
+✅ PNG ja JSON eksport
+
+
+🛠️ TÖÖRIISTAD
+═══════════════
+
+✏️  Joonista    - Lisa pisteid
+🧹  Kustutaja   - Eemalda pisteid
+📏  Joon        - Joonista sirgeid jooni
+✋  Liiguta     - Liiguta pisteid
+⬚  Vali ala    - Vali, kopeeri, kleebi
+
+
+📁 FAILIDE STRUKTUUR
+════════════════════
+
+heegelmotiivid-pro/
+├── index.html           ← PEAMINE FAIL (töötav rakendus)
+├── README.md           ← Projekti dokumentatsioon
+├── QUICKSTART.md       ← Alusta siit!
+├── DEVELOPMENT.md      ← Arenduse juhend
+├── TODO.md            ← Tulevased features
+├── START_HERE.txt     ← See fail
+├── src/               ← Tulevased moodulid (tühi praegu)
+├── docs/              ← API dokumentatsioon
+└── examples/          ← Näidismustrid (tuleb)
+
+
+🚀 JÄRGMISED SAMMUD
+═══════════════════
+
+1. Loe QUICKSTART.md
+2. Ava index.html Live Server'iga
+3. Proovi kõiki funktsioone
+4. Vaata koodi
+5. Tee esimene muudatus
+6. Loe DEVELOPMENT.md täpsemalt
+
+
+💡 NIPID
+═══════
+
+• Ctrl+P        - Kiire failide otsimine
+• Ctrl+/        - Kommenteeri
+• Alt+Shift+F   - Format document
+• F12           - Developer Tools (brauseris)
+
+
+🆘 PROBLEEM?
+═══════════
+
+→ Vaata QUICKSTART.md "Probleemid?" sektsiooni
+→ Kontrolli browser Console'i (F12)
+→ Loe DEVELOPMENT.md debugging sektsiooni
+
+
+🎓 ÕPPEMATERJALID
+═════════════════
+
+MDN Web Docs    - https://developer.mozilla.org
+Canvas API      - HTML5 Canvas dokumentatsioon
+VS Code Docs    - Visual Studio Code juhendid
+
+
+📞 KONTAKT & ABI
+═══════════════
+
+GitHub Issues   - Küsi abi või raport bugs
+Email          - (lisa oma email)
+
+
+═══════════════════════════════════════════════════════════════
+
+Edu arendamisel! 🎉
+
+Alusta QUICKSTART.md failist → see on kõige parem algus!
+
+═══════════════════════════════════════════════════════════════

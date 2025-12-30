@@ -1,0 +1,3415 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heegelmotiivide Redaktor - Professional</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top Menu Bar */
+        .top-menu {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+
+        .menu-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .menu-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-right: 20px;
+        }
+
+        .tab-btn {
+            padding: 8px 20px;
+            border: none;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: #6B8CAE;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #f0f0f0;
+        }
+
+        .menu-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            color: #333;
+        }
+
+        .menu-btn:hover {
+            background: #f8f8f8;
+            border-color: #6B8CAE;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #f8f8f8;
+            border-color: #6B8CAE;
+        }
+
+        /* Main Workspace */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left Vertical Toolbar */
+        .left-toolbar {
+            width: 80px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            box-shadow: 1px 0 3px rgba(0,0,0,0.05);
+            overflow-y: auto;
+        }
+
+        .tool-icon {
+            width: 50px;
+            height: 50px;
+            border: 2px solid transparent;
+            background: #f8f8f8;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: all 0.2s;
+            color: #666;
+            flex-shrink: 0;
+        }
+
+        .tool-icon:hover {
+            background: #e8e8e8;
+            border-color: #6B8CAE;
+        }
+
+        .tool-icon.active {
+            background: #6B8CAE;
+            color: white;
+            border-color: #6B8CAE;
+        }
+
+        .toolbar-divider {
+            width: 40px;
+            height: 1px;
+            background: #e0e0e0;
+            margin: 10px 0;
+            flex-shrink: 0;
+        }
+
+        .toolbar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            overflow: auto;
+            position: relative;
+        }
+
+        #canvas {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            cursor: crosshair;
+        }
+
+        /* Right Sidebar */
+        .right-sidebar {
+            width: 340px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto;
+            box-shadow: -1px 0 3px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Rounds Section */
+        .round-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .round-item:hover {
+            background: #e8e8e8;
+        }
+
+        .round-item.active {
+            background: #e3f2fd;
+            border-left-color: #6B8CAE;
+        }
+
+        .round-checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid #6B8CAE;
+            background: #6B8CAE;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .round-text {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .round-count {
+            font-size: 12px;
+            color: #999;
+            font-weight: normal;
+        }
+
+        .round-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .round-status {
+            color: #6B8CAE;
+            font-size: 14px;
+        }
+
+        .round-lock {
+            color: #999;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .add-round-btn {
+            width: 100%;
+            padding: 12px;
+            background: #6B8CAE;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        .add-round-btn:hover {
+            background: #5a7a9a;
+        }
+
+        .round-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .round-nav-btn {
+            flex: 1;
+            padding: 8px;
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .round-nav-btn:hover {
+            background: #e8e8e8;
+        }
+
+        .round-nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Properties Section */
+        .property-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .property-row:last-child {
+            border-bottom: none;
+        }
+
+        .property-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .property-value {
+            font-size: 14px;
+            color: #333;
+            padding: 6px 12px;
+            background: #f8f8f8;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .property-input {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 100px;
+        }
+
+        select.property-value {
+            border: 1px solid #ddd;
+            cursor: pointer;
+            padding-right: 8px;
+        }
+
+        /* Stitch Palette */
+        .stitch-palette {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .stitch-palette-item {
+            aspect-ratio: 1;
+            background: #f8f8f8;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stitch-palette-item canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: crisp-edges;
+        }
+
+        .stitch-palette-item:hover {
+            background: #e8e8e8;
+            border-color: #6B8CAE;
+        }
+
+        .stitch-palette-item.active {
+            background: #6B8CAE;
+            color: white;
+            border-color: #6B8CAE;
+        }
+
+        /* Auto-continue Status */
+        .auto-status {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .auto-status.active {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #6B8CAE;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #6B8CAE;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: #6B8CAE;
+        }
+
+        /* Symmetry Modal Styles */
+        .symmetry-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            background: white;
+        }
+
+        .symmetry-option:hover {
+            border-color: #6B8CAE;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .symmetry-option.selected {
+            border-color: #6B8CAE;
+            background: #e3f2fd;
+            box-shadow: 0 0 0 3px rgba(107, 140, 174, 0.2);
+        }
+
+        .symmetry-preview {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+            min-height: 120px;
+        }
+
+        .symmetry-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        body.dark-mode .symmetry-option {
+            background: #1a1a1a;
+            border-color: #333;
+        }
+
+        body.dark-mode .symmetry-option:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .symmetry-option.selected {
+            background: rgba(107, 140, 174, 0.2);
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .symmetry-label {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #symmetryModal .modal-content > div:last-of-type {
+            background: #252525;
+        }
+
+        body.dark-mode #symmetryModal .modal-content > div:last-of-type > div:first-of-type {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode #symmetryModal .modal-content > div:last-of-type > div:last-of-type {
+            color: #888;
+        }
+
+        /* Crochet Chart Modal Styles */
+        .chart-category-btn {
+            padding: 10px 15px;
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+            transition: all 0.2s;
+            color: #333;
+        }
+
+        .chart-category-btn:hover {
+            background: #e8e8e8;
+            border-color: #6B8CAE;
+        }
+
+        .chart-category-btn.active {
+            background: #6B8CAE;
+            color: white;
+            border-color: #6B8CAE;
+        }
+
+        .chart-stitch-item {
+            aspect-ratio: 1;
+            background: #f8f8f8;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .chart-stitch-item:hover {
+            background: #e8e8e8;
+            border-color: #6B8CAE;
+            transform: scale(1.1);
+        }
+
+        .chart-stitch-item.selected {
+            background: #6B8CAE;
+            color: white;
+            border-color: #6B8CAE;
+        }
+
+        .chart-stitch-item .stitch-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            margin-bottom: 5px;
+            z-index: 1000;
+        }
+
+        .chart-stitch-item:hover .stitch-tooltip {
+            opacity: 1;
+        }
+
+        body.dark-mode .chart-category-btn {
+            background: #252525;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .chart-category-btn:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .chart-category-btn.active {
+            background: #6B8CAE;
+            color: white;
+        }
+
+        body.dark-mode .chart-stitch-item {
+            background: #252525;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .chart-stitch-item:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .chart-stitch-item.selected {
+            background: #6B8CAE;
+            color: white;
+        }
+
+        body.dark-mode #crochetChartModal .modal-content > div:first-of-type {
+            border-right-color: #2a2a2a;
+        }
+
+        body.dark-mode #crochetChartModal .modal-content > div:last-of-type {
+            border-top-color: #2a2a2a;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 8px 20px;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .zoom-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #f8f8f8;
+            border-color: #6B8CAE;
+        }
+
+        /* Dark Mode */
+        body.dark-mode {
+            background: #0d0d0d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .top-menu {
+            background: #1a1a1a;
+            border-bottom-color: #2a2a2a;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        body.dark-mode .app-title {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .tab-btn {
+            background: #1a1a1a;
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .tab-btn:hover:not(.active) {
+            background: #2a2a2a;
+        }
+
+        body.dark-mode .tab-btn.active {
+            background: #6B8CAE;
+            color: white;
+        }
+
+        body.dark-mode .menu-btn {
+            background: #1a1a1a;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .menu-btn:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .icon-btn {
+            background: #1a1a1a;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .icon-btn:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .left-toolbar {
+            background: #1a1a1a;
+            border-right-color: #2a2a2a;
+            box-shadow: 1px 0 3px rgba(0,0,0,0.3);
+        }
+
+        body.dark-mode .tool-icon {
+            background: #252525;
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .tool-icon:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .tool-icon.active {
+            background: #6B8CAE;
+            color: white;
+        }
+
+        body.dark-mode .toolbar-divider {
+            background: #2a2a2a;
+        }
+
+        body.dark-mode .canvas-area {
+            background: #0d0d0d;
+        }
+
+        body.dark-mode #canvas {
+            background: #1e1e1e;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        body.dark-mode .right-sidebar {
+            background: #1a1a1a;
+            border-left-color: #2a2a2a;
+            box-shadow: -1px 0 3px rgba(0,0,0,0.3);
+        }
+
+        body.dark-mode .sidebar-section {
+            border-bottom-color: #2a2a2a;
+        }
+
+        body.dark-mode .sidebar-section h3 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .round-item {
+            background: #252525;
+        }
+
+        body.dark-mode .round-item:hover {
+            background: #2a2a2a;
+        }
+
+        body.dark-mode .round-item.active {
+            background: rgba(107, 140, 174, 0.2);
+            border-left-color: #6B8CAE;
+        }
+
+        body.dark-mode .round-text {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .round-count {
+            color: #888;
+        }
+
+        body.dark-mode .round-status {
+            color: #6B8CAE;
+        }
+
+        body.dark-mode .round-lock {
+            color: #888;
+        }
+
+        body.dark-mode .round-nav-btn {
+            background: #252525;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .round-nav-btn:hover {
+            background: #2a2a2a;
+        }
+
+        body.dark-mode .property-row {
+            border-bottom-color: #2a2a2a;
+        }
+
+        body.dark-mode .property-label {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .property-value {
+            background: #252525;
+            color: #e0e0e0;
+            border-color: #333;
+        }
+
+        body.dark-mode .property-input {
+            background: #252525;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode select.property-value {
+            background: #252525;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .stitch-palette-item {
+            background: #252525;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .stitch-palette-item:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode .stitch-palette-item.active {
+            background: #6B8CAE;
+            color: white;
+        }
+
+        body.dark-mode .auto-status {
+            background: #252525;
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .auto-status.active {
+            background: rgba(40, 167, 69, 0.2);
+            color: #4ade80;
+            border-color: rgba(40, 167, 69, 0.3);
+        }
+
+        body.dark-mode .slider {
+            background-color: #444;
+        }
+
+        body.dark-mode input:checked + .slider {
+            background-color: #6B8CAE;
+        }
+
+        body.dark-mode .modal {
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        body.dark-mode .modal-content {
+            background-color: #1a1a1a;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+
+        body.dark-mode .modal-header {
+            border-bottom-color: #6B8CAE;
+        }
+
+        body.dark-mode .modal-header h2 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .close-btn {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .close-btn:hover {
+            color: #6B8CAE;
+        }
+
+        body.dark-mode .status-bar {
+            background: #1a1a1a;
+            border-top-color: #2a2a2a;
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .zoom-btn {
+            background: #252525;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .zoom-btn:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .right-sidebar {
+                width: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .left-toolbar {
+                width: 60px;
+            }
+            
+            .tool-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Menu -->
+        <div class="top-menu">
+            <div class="menu-left">
+                <span class="app-title">🧵 Heegelmotiivid</span>
+                <button class="tab-btn active">Visual</button>
+                <button class="tab-btn">Text Pattern</button>
+                <button class="menu-btn" onclick="alert('New project functionality coming soon!')">
+                    New ▼
+                </button>
+                <button class="menu-btn">Templates</button>
+            </div>
+            <div class="menu-right">
+                <button class="menu-btn" onclick="toggleSymmetryModal()">
+                    🔄 Symmetry
+                </button>
+                <button class="menu-btn" onclick="clearAllStitches()" style="color: #d32f2f;">
+                    🗑️ Clear
+                </button>
+                <button class="menu-btn" onclick="savePattern()">
+                    ⬆ Export PNG
+                </button>
+                <button class="menu-btn" onclick="saveJSON()">
+                    💾 Save
+                </button>
+                <button class="icon-btn" onclick="toggleDarkMode()" id="darkModeToggle" title="Dark Mode">🌙</button>
+            </div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <!-- Left Toolbar -->
+            <div class="left-toolbar" id="leftToolbar">
+                <!-- Tools will be populated by JavaScript -->
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="canvas-area">
+                <canvas id="canvas" width="600" height="600"></canvas>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="right-sidebar" id="rightSidebar">
+                <!-- Sidebar content will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div id="statusText">Ready</div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoom(-0.1)">−</button>
+                <span id="zoomLevel">100%</span>
+                <button class="zoom-btn" onclick="zoom(0.1)">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Stitch Modal -->
+    <div id="customStitchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎨 Loo custom heegelpiste</h2>
+                <button class="close-btn" onclick="closeCustomStitchModal()">&times;</button>
+            </div>
+            <!-- Modal content will be added -->
+            <p style="text-align: center; color: #666;">Custom stitch creator coming in next update...</p>
+        </div>
+    </div>
+
+    <!-- Crochet Chart Modal -->
+    <div id="crochetChartModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h2>📋 Heegelpisteide Chart</h2>
+                <button class="close-btn" onclick="closeCrochetChartModal()">&times;</button>
+            </div>
+            <div style="display: flex; gap: 20px; flex: 1; overflow: hidden;">
+                <!-- Categories Sidebar -->
+                <div style="width: 200px; border-right: 1px solid #e0e0e0; padding-right: 15px; overflow-y: auto;">
+                    <h3 style="font-size: 14px; margin-bottom: 15px; color: #666;">Kategooriad</h3>
+                    <div id="chartCategories" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+                <!-- Stitches Grid -->
+                <div style="flex: 1; overflow-y: auto; padding-left: 15px;">
+                    <div id="chartStitchesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 10px; padding: 10px 0;"></div>
+                </div>
+            </div>
+            <div style="padding: 15px; border-top: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                <div id="selectedStitchInfo" style="font-size: 14px; color: #666;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="menu-btn" onclick="closeCrochetChartModal()">Tühista</button>
+                    <button class="menu-btn" onclick="selectStitchFromChart()" id="addStitchBtn" style="background: #6B8CAE; color: white; border: none; opacity: 0.5; cursor: not-allowed;" disabled>Lisa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Symmetry Modal -->
+    <div id="symmetryModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>🔄 Sümmeetria seaded</h2>
+                <button class="close-btn" onclick="closeSymmetryModal()">&times;</button>
+            </div>
+            <div style="padding: 20px 0;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <!-- None -->
+                    <div class="symmetry-option" data-mode="none" onclick="selectSymmetryMode('none')">
+                        <div class="symmetry-preview" id="preview-none">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="8" fill="#6B8CAE"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Väljas</div>
+                    </div>
+                    
+                    <!-- Mirror Horizontal -->
+                    <div class="symmetry-option" data-mode="mirror-h" onclick="selectSymmetryMode('mirror-h')">
+                        <div class="symmetry-preview" id="preview-mirror-h">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <line x1="0" y1="60" x2="120" y2="60" stroke="#6B8CAE" stroke-width="2" stroke-dasharray="3,3"/>
+                                <circle cx="40" cy="40" r="8" fill="#6B8CAE"/>
+                                <circle cx="80" cy="80" r="8" fill="#6B8CAE" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Peegel H</div>
+                    </div>
+                    
+                    <!-- Mirror Vertical -->
+                    <div class="symmetry-option" data-mode="mirror-v" onclick="selectSymmetryMode('mirror-v')">
+                        <div class="symmetry-preview" id="preview-mirror-v">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <line x1="60" y1="0" x2="60" y2="120" stroke="#6B8CAE" stroke-width="2" stroke-dasharray="3,3"/>
+                                <circle cx="40" cy="40" r="8" fill="#6B8CAE"/>
+                                <circle cx="80" cy="40" r="8" fill="#6B8CAE" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Peegel V</div>
+                    </div>
+                    
+                    <!-- Mirror Both -->
+                    <div class="symmetry-option" data-mode="mirror-both" onclick="selectSymmetryMode('mirror-both')">
+                        <div class="symmetry-preview" id="preview-mirror-both">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <line x1="0" y1="60" x2="120" y2="60" stroke="#6B8CAE" stroke-width="2" stroke-dasharray="3,3"/>
+                                <line x1="60" y1="0" x2="60" y2="120" stroke="#6B8CAE" stroke-width="2" stroke-dasharray="3,3"/>
+                                <circle cx="40" cy="40" r="8" fill="#6B8CAE"/>
+                                <circle cx="80" cy="40" r="8" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="40" cy="80" r="8" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="80" cy="80" r="8" fill="#6B8CAE" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Peegel Mõlemad</div>
+                    </div>
+                    
+                    <!-- Radial 4 -->
+                    <div class="symmetry-option" data-mode="radial-4" onclick="selectSymmetryMode('radial-4')">
+                        <div class="symmetry-preview" id="preview-radial-4">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <line x1="60" y1="60" x2="60" y2="10" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <line x1="60" y1="60" x2="110" y2="60" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <line x1="60" y1="60" x2="60" y2="110" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <line x1="60" y1="60" x2="10" y2="60" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <circle cx="60" cy="30" r="6" fill="#6B8CAE"/>
+                                <circle cx="90" cy="60" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="60" cy="90" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="30" cy="60" r="6" fill="#6B8CAE" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Radiaalne 4</div>
+                    </div>
+                    
+                    <!-- Radial 6 -->
+                    <div class="symmetry-option" data-mode="radial-6" onclick="selectSymmetryMode('radial-6')">
+                        <div class="symmetry-preview" id="preview-radial-6">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <circle cx="60" cy="30" r="6" fill="#6B8CAE"/>
+                                <circle cx="90" cy="45" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="90" cy="75" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="60" cy="90" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="30" cy="75" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="30" cy="45" r="6" fill="#6B8CAE" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Radiaalne 6</div>
+                    </div>
+                    
+                    <!-- Radial 8 -->
+                    <div class="symmetry-option" data-mode="radial-8" onclick="selectSymmetryMode('radial-8')">
+                        <div class="symmetry-preview" id="preview-radial-8">
+                            <svg width="120" height="120" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#6B8CAE" stroke-width="1" stroke-dasharray="2,2"/>
+                                <circle cx="60" cy="30" r="6" fill="#6B8CAE"/>
+                                <circle cx="85" cy="35" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="100" cy="60" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="85" cy="85" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="60" cy="90" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="35" cy="85" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="20" cy="60" r="6" fill="#6B8CAE" opacity="0.5"/>
+                                <circle cx="35" cy="35" r="6" fill="#6B8CAE" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="symmetry-label">Radiaalne 8</div>
+                    </div>
+                </div>
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-top: 20px;">
+                    <div style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                        <strong>Praegune sümmeetria:</strong> <span id="currentSymmetryDisplay">Väljas</span>
+                    </div>
+                    <div style="font-size: 13px; color: #888;">
+                        Vali sümmeetria režiim, et joonistada pisted automaatselt sümmeetriliselt. Sümmeetria kehtib kõigile uutele pisteidele.
+                    </div>
+                </div>
+            </div>
+            <div style="padding: 15px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="menu-btn" onclick="closeSymmetryModal()">Sulge</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION & STATE
+        // ============================================
+        
+        let currentStitch = 'chain';
+        let currentColor = '#000000';
+        let currentShape = 'circle';
+        let currentStitchSize = 22;
+        let currentRotation = 0;
+        let currentToolMode = 'draw';
+        let symmetryMode = 'none';
+        let layers = [{ id: 1, name: 'Round 1', stitches: [], visible: true }];
+        let currentLayerIndex = 0;
+        let showAllLayers = false;
+        let suggestions = [];
+        let autoContinueEnabled = true;
+        let customStitches = [];
+        let nextLayerId = 2;
+        
+        // Line tool variables
+        let lineStartPoint = null;
+        let linePreview = null;
+        
+        // Selection variables
+        let selectionStart = null;
+        let selectionEnd = null;
+        let selectedStitches = [];
+        let clipboard = null;
+        
+        // Move tool variables
+        let moveStartPoint = null;
+        let movingStitches = [];
+        let isRotating = false;
+        let rotateStartAngle = 0;
+        let movingSingleStitch = null; // For move tool - single stitch being moved
+        let isDrawing = false;
+        
+        // Crochet Chart - Standard symbols only (from chart image)
+        const stitchNames = {
+            // Basic Stitches
+            'chain': 'Ahelpistet (ch)',
+            'slip': 'Kinnispistet (sl st)',
+            'sc': 'Ühekordne pööret (sc)',
+            'hdc': 'Poolkordne varras (hdc)',
+            'dc': 'Topeltvarras (dc)',
+            'tr': 'Kolmekordne varras (tr)',
+            'dtr': 'Topelt kolmekordne (dtr)',
+            
+            // Decreases
+            'sc2tog': 'Sc2tog',
+            'sc3tog': 'Sc3tog',
+            'dc2tog': 'Dc2tog',
+            'dc3tog': 'Dc3tog',
+            
+            // Clusters & Special
+            'cluster-3dc': '3-dc cluster',
+            'cluster-3hdc': '3-hdc cluster/puff st/bobble',
+            'popcorn-5dc': '5-dc popcorn',
+            'shell-5dc': '5-dc shell',
+            'picot-ch3': 'Ch-3 picot',
+            
+            // Post Stitches
+            'fpdc': 'Front post dc (FPdc)',
+            'bpdc': 'Back post dc (BPdc)',
+            
+            // Loop Modifiers
+            'blo': 'Worked in back loop only',
+            'flo': 'Worked in front loop only'
+        };
+        
+        const stitchSymbols = {
+            // Basic Stitches - Standard crochet chart symbols
+            'chain': '○',   // Horizontal oval
+            'slip': '●',    // Solid circle
+            'sc': '+',      // Plus sign (also supports X)
+            'hdc': 'T',     // T shape
+            'dc': '┴',      // T with one horizontal bar
+            'tr': '┬',      // T with two horizontal bars
+            'dtr': '┼',     // T with three horizontal bars
+            
+            // Decreases
+            'sc2tog': '∧',  // Inverted V with bar and X at top
+            'sc3tog': '∧',  // Inverted V with two bars and X at top
+            'dc2tog': '∧',  // Inverted V with bar
+            'dc3tog': '∧',  // Inverted V with two bars
+            
+            // Clusters & Special
+            'cluster-3dc': '◉',   // Vertical oval with 3 lines
+            'cluster-3hdc': '◐',  // Vertical oval with 1 line (puff/bobble)
+            'popcorn-5dc': '◉',   // Vertical oval with 5 lines
+            'shell-5dc': '⋏',     // Fan shape with 5 lines
+            'picot-ch3': '◊',     // Circle with loop (ch-3 picot)
+            
+            // Post Stitches
+            'fpdc': '┴',    // T with hook to right
+            'bpdc': '┴',    // T with hook to left
+            
+            // Loop Modifiers
+            'blo': '(',     // Open parenthesis (back loop only)
+            'flo': ')'      // Close parenthesis (front loop only)
+        };
+        
+        // Stitch categories for the chart modal - Only symbols from chart image
+        const stitchCategories = {
+            'basic': {
+                name: 'Põhilised',
+                stitches: ['chain', 'slip', 'sc', 'hdc', 'dc', 'tr', 'dtr']
+            },
+            'decreases': {
+                name: 'Vähendused',
+                stitches: ['sc2tog', 'sc3tog', 'dc2tog', 'dc3tog']
+            },
+            'clusters': {
+                name: 'Kobarid ja eripisted',
+                stitches: ['cluster-3dc', 'cluster-3hdc', 'popcorn-5dc', 'shell-5dc', 'picot-ch3']
+            },
+            'post': {
+                name: 'Post pisted ja silmused',
+                stitches: ['fpdc', 'bpdc', 'blo', 'flo']
+            }
+        };
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        console.log('Professional Crochet Editor Loaded');
+        
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        
+        function getCenter() {
+            return { x: canvas.width / 2, y: canvas.height / 2 };
+        }
+
+        function getDistanceFromCenter(x, y) {
+            const center = getCenter();
+            return Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
+        }
+
+        function getAngleFromCenter(x, y) {
+            const center = getCenter();
+            return Math.atan2(y - center.y, x - center.x);
+        }
+
+        function getCurrentLayer() {
+            return layers[currentLayerIndex];
+        }
+
+        function getCurrentStitches() {
+            return getCurrentLayer().stitches;
+        }
+
+        function getTotalStitchCount() {
+            return layers.reduce((total, layer) => total + layer.stitches.length, 0);
+        }
+
+        // ============================================
+        // UI INITIALIZATION
+        // ============================================
+        
+        function initUI() {
+            createLeftToolbar();
+            createRightSidebar();
+            initCanvas();
+        }
+
+        function createLeftToolbar() {
+            const toolbar = document.getElementById('leftToolbar');
+            
+            const tools = [
+                { id: 'draw', icon: '✏️', title: 'Joonista' },
+                { id: 'erase', icon: '🧹', title: 'Kustuta' },
+                { id: 'line', icon: '📏', title: 'Joon' },
+                { id: 'move', icon: '✋', title: 'Liiguta' },
+                { id: 'select', icon: '⬚', title: 'Vali ala' },
+            ];
+
+            const section1 = document.createElement('div');
+            section1.className = 'toolbar-section';
+            
+            tools.forEach((tool, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'tool-icon' + (index === 0 ? ' active' : '');
+                btn.innerHTML = tool.icon;
+                btn.title = tool.title;
+                btn.onclick = () => setToolMode(tool.id);
+                btn.dataset.tool = tool.id;
+                section1.appendChild(btn);
+            });
+            
+            toolbar.appendChild(section1);
+            
+            // Divider
+            const div1 = document.createElement('div');
+            div1.className = 'toolbar-divider';
+            toolbar.appendChild(div1);
+            
+            // Zoom tools
+            const section2 = document.createElement('div');
+            section2.className = 'toolbar-section';
+            
+            const zoomIn = document.createElement('div');
+            zoomIn.className = 'tool-icon';
+            zoomIn.innerHTML = '🔍';
+            zoomIn.title = 'Zoom in';
+            zoomIn.onclick = () => zoom(0.1);
+            section2.appendChild(zoomIn);
+            
+            toolbar.appendChild(section2);
+            
+            // Divider
+            const div2 = document.createElement('div');
+            div2.className = 'toolbar-divider';
+            toolbar.appendChild(div2);
+            
+            // Undo/Redo
+            const section3 = document.createElement('div');
+            section3.className = 'toolbar-section';
+            
+            const undo = document.createElement('div');
+            undo.className = 'tool-icon';
+            undo.innerHTML = '↶';
+            undo.title = 'Tagasi';
+            section3.appendChild(undo);
+            
+            const redo = document.createElement('div');
+            redo.className = 'tool-icon';
+            redo.innerHTML = '↷';
+            redo.title = 'Uuesti';
+            section3.appendChild(redo);
+            
+            toolbar.appendChild(section3);
+        }
+
+        function createRightSidebar() {
+            const sidebar = document.getElementById('rightSidebar');
+            
+            // Auto-continue status
+            const autoSection = document.createElement('div');
+            autoSection.className = 'sidebar-section';
+            autoSection.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>🤖 Automaatne jätkamine</h3>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoContinue" checked onchange="toggleAutoContinue()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="auto-status" id="autoStatus">
+                    Lisa 3 silmust samal ringil
+                </div>
+            `;
+            sidebar.appendChild(autoSection);
+            
+            // Rounds section
+            const roundsSection = document.createElement('div');
+            roundsSection.className = 'sidebar-section';
+            roundsSection.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>Rounds</h3>
+                    <label class="toggle-switch" title="Näita kõiki round'e korraga">
+                        <input type="checkbox" id="showAllLayers" onchange="toggleShowAllLayers()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="round-nav">
+                    <button class="round-nav-btn" onclick="previousLayer()">◀ Eelmine</button>
+                    <button class="round-nav-btn" onclick="nextLayer()">Järgmine ▶</button>
+                </div>
+                <div id="roundsList"></div>
+                <button class="add-round-btn" onclick="addNewLayer()">+ Lisa uus round</button>
+            `;
+            sidebar.appendChild(roundsSection);
+            
+            // Properties section
+            const propsSection = document.createElement('div');
+            propsSection.className = 'sidebar-section';
+            propsSection.innerHTML = `
+                <h3>Properties</h3>
+                <div class="property-row">
+                    <span class="property-label">Praegune pistet:</span>
+                    <span class="property-value" id="propCurrentStitch">${stitchNames[currentStitch]}</span>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Suurus:</span>
+                    <input type="number" class="property-input" id="propStitchSize" value="${currentStitchSize}" min="10" max="50" onchange="updateStitchSize()">
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Pööramine:</span>
+                    <input type="number" class="property-input" id="propRotation" value="${currentRotation}" min="-180" max="180" onchange="updateRotation()">
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Värv:</span>
+                    <input type="color" id="propColor" value="${currentColor}" onchange="updateColor()" style="width: 50px; height: 30px; border: none; cursor: pointer;">
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Kuju:</span>
+                    <select class="property-value" id="propShape" onchange="changeShape()">
+                        <option value="circle">Ring</option>
+                        <option value="square">Ruut</option>
+                        <option value="hexagon">Kuusnurk</option>
+                        <option value="triangle">Kolmnurk</option>
+                        <option value="octagon">Kaheksanurk</option>
+                        <option value="freeform">Vabakuju</option>
+                    </select>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Sümmeetria:</span>
+                    <select class="property-value" id="propSymmetry" onchange="updateSymmetryMode()">
+                        <option value="none">Väljas</option>
+                        <option value="mirror-h">Peegel H</option>
+                        <option value="mirror-v">Peegel V</option>
+                        <option value="mirror-both">Peegel Mõlemad</option>
+                        <option value="radial-4">Radiaalne 4</option>
+                        <option value="radial-6">Radiaalne 6</option>
+                        <option value="radial-8">Radiaalne 8</option>
+                    </select>
+                </div>
+            `;
+            sidebar.appendChild(propsSection);
+            
+            // Stitch Palette
+            const paletteSection = document.createElement('div');
+            paletteSection.className = 'sidebar-section';
+            paletteSection.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>Pistete palett</h3>
+                    <button class="menu-btn" onclick="openCrochetChartModal()" style="padding: 6px 12px; font-size: 12px;">📋 Chart</button>
+                </div>
+                <div class="stitch-palette" id="stitchPalette"></div>
+            `;
+            sidebar.appendChild(paletteSection);
+            
+            updateStitchPalette();
+            updateRoundsList();
+        }
+
+        function drawStitchToCanvas(canvas, stitch, color = '#333', size = 20) {
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            
+            const scale = size / 22;
+            
+            // Draw specific symbols using Canvas API (same as drawStitch function)
+            switch(stitch) {
+                case 'chain':
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+                    
+                case 'slip':
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 4 * scale, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                    
+                case 'sc':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, 0);
+                    ctx.lineTo(6 * scale, 0);
+                    ctx.moveTo(0, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'hdc':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, 0);
+                    ctx.lineTo(6 * scale, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dc':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'tr':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dtr':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -2 * scale);
+                    ctx.lineTo(6 * scale, -2 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'sc2tog':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-3 * scale, -7 * scale);
+                    ctx.lineTo(3 * scale, -5 * scale);
+                    ctx.moveTo(3 * scale, -7 * scale);
+                    ctx.lineTo(-3 * scale, -5 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'sc3tog':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, -2 * scale);
+                    ctx.lineTo(4 * scale, -2 * scale);
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-3 * scale, -7 * scale);
+                    ctx.lineTo(3 * scale, -5 * scale);
+                    ctx.moveTo(3 * scale, -7 * scale);
+                    ctx.lineTo(-3 * scale, -5 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dc2tog':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dc3tog':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, -2 * scale);
+                    ctx.lineTo(4 * scale, -2 * scale);
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 'cluster-3dc':
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.lineWidth = 2 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-2 * scale, -6 * scale);
+                    ctx.lineTo(-2 * scale, 6 * scale);
+                    ctx.moveTo(0, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.moveTo(2 * scale, -6 * scale);
+                    ctx.lineTo(2 * scale, 6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'cluster-3hdc':
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 5 * scale, 8 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.lineWidth = 2 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'popcorn-5dc':
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.lineWidth = 1.5 * scale;
+                    ctx.beginPath();
+                    for (let i = -2; i <= 2; i++) {
+                        ctx.moveTo(i * 1.5 * scale, -6 * scale);
+                        ctx.lineTo(i * 1.5 * scale, 6 * scale);
+                    }
+                    ctx.stroke();
+                    break;
+                    
+                case 'shell-5dc':
+                    ctx.lineWidth = 2.5 * scale;
+                    const fanRadius = 8 * scale;
+                    const fanStartAngle = -Math.PI / 3;
+                    const fanEndAngle = Math.PI / 3;
+                    for (let i = 0; i < 5; i++) {
+                        const angle = fanStartAngle + (fanEndAngle - fanStartAngle) * (i / 4);
+                        ctx.beginPath();
+                        ctx.moveTo(0, 4 * scale);
+                        ctx.lineTo(
+                            Math.cos(angle) * fanRadius,
+                            -Math.sin(angle) * fanRadius + 4 * scale
+                        );
+                        ctx.stroke();
+                    }
+                    break;
+                    
+                case 'picot-ch3':
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3 * scale, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(2 * scale, -2 * scale);
+                    ctx.quadraticCurveTo(4 * scale, -4 * scale, 6 * scale, -2 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'fpdc':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.arc(4 * scale, 6 * scale, 2 * scale, Math.PI, 0, false);
+                    ctx.stroke();
+                    break;
+                    
+                case 'bpdc':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.arc(-4 * scale, 6 * scale, 2 * scale, 0, Math.PI, false);
+                    ctx.stroke();
+                    break;
+                    
+                case 'blo':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.arc(-3 * scale, 0, 3 * scale, -Math.PI / 2, Math.PI / 2, false);
+                    ctx.stroke();
+                    break;
+                    
+                case 'flo':
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.arc(3 * scale, 0, 3 * scale, Math.PI / 2, -Math.PI / 2, false);
+                    ctx.stroke();
+                    break;
+                    
+                default:
+                    // Fallback to text symbol
+                    ctx.font = `bold ${size}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const symbol = stitchSymbols[stitch];
+                    if (symbol) {
+                        ctx.fillText(symbol, 0, 0);
+                    } else {
+                        ctx.fillText('?', 0, 0);
+                    }
+            }
+            
+            ctx.restore();
+        }
+
+        function updateStitchPalette() {
+            const palette = document.getElementById('stitchPalette');
+            if (!palette) return;
+            
+            palette.innerHTML = '';
+            
+            const isDark = document.body.classList.contains('dark-mode');
+            const symbolColor = isDark ? '#e0e0e0' : '#333';
+            
+            Object.keys(stitchSymbols).forEach(stitchId => {
+                const item = document.createElement('div');
+                const isActive = stitchId === currentStitch;
+                item.className = 'stitch-palette-item' + (isActive ? ' active' : '');
+                item.title = stitchNames[stitchId];
+                
+                // Create a small canvas for the symbol
+                const symbolCanvas = document.createElement('canvas');
+                symbolCanvas.width = 40;
+                symbolCanvas.height = 40;
+                // Use white color for active items, otherwise use normal color
+                const color = isActive ? '#ffffff' : symbolColor;
+                drawStitchToCanvas(symbolCanvas, stitchId, color, 18);
+                
+                item.appendChild(symbolCanvas);
+                item.onclick = () => {
+                    currentStitch = stitchId;
+                    updateStitchPalette();
+                    updateProperties();
+                };
+                palette.appendChild(item);
+            });
+        }
+
+        function updateRoundsList() {
+            const list = document.getElementById('roundsList');
+            if (!list) return;
+            
+            list.innerHTML = '';
+            
+            layers.forEach((layer, index) => {
+                const item = document.createElement('div');
+                item.className = 'round-item' + (index === currentLayerIndex ? ' active' : '');
+                item.onclick = () => {
+                    currentLayerIndex = index;
+                    updateRoundsList();
+                    redrawStitches();
+                };
+                
+                const checkbox = document.createElement('div');
+                checkbox.className = 'round-checkbox';
+                checkbox.innerHTML = '✓';
+                
+                const text = document.createElement('div');
+                text.className = 'round-text';
+                text.innerHTML = layer.name + '<br><span class="round-count">' + layer.stitches.length + ' pisteid</span>';
+                
+                const actions = document.createElement('div');
+                actions.className = 'round-actions';
+                actions.innerHTML = '<span class="round-status">✓</span>';
+                
+                item.appendChild(checkbox);
+                item.appendChild(text);
+                item.appendChild(actions);
+                
+                list.appendChild(item);
+            });
+        }
+
+        function updateProperties() {
+            const prop = document.getElementById('propCurrentStitch');
+            if (prop) prop.textContent = stitchNames[currentStitch];
+        }
+
+        // ============================================
+        // CANVAS RENDERING
+        // ============================================
+        
+        function initCanvas() {
+            drawGrid();
+            drawShapeGuide();
+            redrawStitches();
+        }
+
+        function drawGrid() {
+            const size = canvas.width;
+            const center = size / 2;
+            const isDark = document.body.classList.contains('dark-mode');
+            
+            ctx.strokeStyle = isDark ? '#2a2a2a' : '#e9ecef';
+            ctx.lineWidth = 1;
+            
+            if (currentShape === 'circle' || currentShape === 'hexagon' || currentShape === 'octagon') {
+                for (let r = 30; r < size / 2; r += 40) {
+                    ctx.beginPath();
+                    ctx.arc(center, center, r, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                const divisions = currentShape === 'hexagon' ? 6 : currentShape === 'octagon' ? 8 : 12;
+                for (let i = 0; i < divisions; i++) {
+                    const angle = (Math.PI * 2 * i) / divisions;
+                    ctx.beginPath();
+                    ctx.moveTo(center, center);
+                    ctx.lineTo(
+                        center + Math.cos(angle) * (size / 2),
+                        center + Math.sin(angle) * (size / 2)
+                    );
+                    ctx.stroke();
+                }
+            } else if (currentShape === 'square') {
+                const spacing = 30;
+                for (let i = spacing; i < size; i += spacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, size);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(size, i);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawShapeGuide() {
+            const size = canvas.width;
+            const center = size / 2;
+            const radius = size / 2 - 60;
+            
+            ctx.strokeStyle = '#6B8CAE';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            switch (currentShape) {
+                case 'circle':
+                    ctx.beginPath();
+                    ctx.arc(center, center, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+                    
+                case 'square':
+                    const squareSize = radius * 1.4;
+                    ctx.strokeRect(
+                        center - squareSize / 2,
+                        center - squareSize / 2,
+                        squareSize,
+                        squareSize
+                    );
+                    break;
+                    
+                case 'hexagon':
+                    drawPolygon(center, center, radius, 6);
+                    break;
+                    
+                case 'triangle':
+                    drawPolygon(center, center, radius, 3);
+                    break;
+                    
+                case 'octagon':
+                    drawPolygon(center, center, radius, 8);
+                    break;
+            }
+            
+            ctx.setLineDash([]);
+        }
+
+        function drawPolygon(x, y, radius, sides) {
+            ctx.beginPath();
+            for (let i = 0; i <= sides; i++) {
+                const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
+                const px = x + Math.cos(angle) * radius;
+                const py = y + Math.sin(angle) * radius;
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22, rotation = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((rotation * Math.PI) / 180);
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            
+            const bgRadius = size * 0.7;
+            const scale = size / 22; // Scale factor based on size
+            
+            if (isSuggestion) {
+                ctx.fillStyle = 'rgba(40, 167, 69, 0.3)';
+                ctx.beginPath();
+                ctx.arc(0, 0, bgRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#28a745';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, bgRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.strokeStyle = '#28a745';
+                ctx.fillStyle = '#28a745';
+            }
+            
+            // Draw specific symbols using Canvas API to match chart exactly
+            switch(stitch) {
+                case 'chain':
+                    // Horizontal oval
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+                    
+                case 'slip':
+                    // Solid circle
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 4 * scale, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                    
+                case 'sc':
+                    // Plus sign
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, 0);
+                    ctx.lineTo(6 * scale, 0);
+                    ctx.moveTo(0, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'hdc':
+                    // T shape
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, 0);
+                    ctx.lineTo(6 * scale, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dc':
+                    // T with one horizontal bar
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'tr':
+                    // T with two horizontal bars
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dtr':
+                    // T with three horizontal bars
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -2 * scale);
+                    ctx.lineTo(6 * scale, -2 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'sc2tog':
+                    // Inverted V with bar and X at top
+                    ctx.lineWidth = 2.5 * scale;
+                    // V shape
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    // Horizontal bar across legs
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    // X at top
+                    ctx.beginPath();
+                    ctx.moveTo(-3 * scale, -7 * scale);
+                    ctx.lineTo(3 * scale, -5 * scale);
+                    ctx.moveTo(3 * scale, -7 * scale);
+                    ctx.lineTo(-3 * scale, -5 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'sc3tog':
+                    // Inverted V with two bars and X at top
+                    ctx.lineWidth = 2.5 * scale;
+                    // V shape
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    // Two horizontal bars across legs
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, -2 * scale);
+                    ctx.lineTo(4 * scale, -2 * scale);
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    // X at top
+                    ctx.beginPath();
+                    ctx.moveTo(-3 * scale, -7 * scale);
+                    ctx.lineTo(3 * scale, -5 * scale);
+                    ctx.moveTo(3 * scale, -7 * scale);
+                    ctx.lineTo(-3 * scale, -5 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dc2tog':
+                    // Inverted V with bar (no X at top)
+                    ctx.lineWidth = 2.5 * scale;
+                    // V shape
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    // Horizontal bar across legs
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 'dc3tog':
+                    // Inverted V with two bars (no X at top)
+                    ctx.lineWidth = 2.5 * scale;
+                    // V shape
+                    ctx.beginPath();
+                    ctx.moveTo(-6 * scale, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.lineTo(6 * scale, -6 * scale);
+                    ctx.stroke();
+                    // Two horizontal bars across legs
+                    ctx.beginPath();
+                    ctx.moveTo(-4 * scale, -2 * scale);
+                    ctx.lineTo(4 * scale, -2 * scale);
+                    ctx.moveTo(-4 * scale, 0);
+                    ctx.lineTo(4 * scale, 0);
+                    ctx.stroke();
+                    break;
+                    
+                case 'cluster-3dc':
+                    // Vertical oval with 3 lines
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    // 3 vertical lines
+                    ctx.lineWidth = 2 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-2 * scale, -6 * scale);
+                    ctx.lineTo(-2 * scale, 6 * scale);
+                    ctx.moveTo(0, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.moveTo(2 * scale, -6 * scale);
+                    ctx.lineTo(2 * scale, 6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'cluster-3hdc':
+                    // Vertical oval with 1 line (puff/bobble)
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 5 * scale, 8 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    // 1 vertical line
+                    ctx.lineWidth = 2 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -6 * scale);
+                    ctx.lineTo(0, 6 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'popcorn-5dc':
+                    // Vertical oval with 5 lines
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    // 5 vertical lines
+                    ctx.lineWidth = 1.5 * scale;
+                    ctx.beginPath();
+                    for (let i = -2; i <= 2; i++) {
+                        ctx.moveTo(i * 1.5 * scale, -6 * scale);
+                        ctx.lineTo(i * 1.5 * scale, 6 * scale);
+                    }
+                    ctx.stroke();
+                    break;
+                    
+                case 'shell-5dc':
+                    // Fan shape with 5 lines
+                    ctx.lineWidth = 2.5 * scale;
+                    const fanRadius = 8 * scale;
+                    const fanStartAngle = -Math.PI / 3;
+                    const fanEndAngle = Math.PI / 3;
+                    for (let i = 0; i < 5; i++) {
+                        const angle = fanStartAngle + (fanEndAngle - fanStartAngle) * (i / 4);
+                        ctx.beginPath();
+                        ctx.moveTo(0, 4 * scale);
+                        ctx.lineTo(
+                            Math.cos(angle) * fanRadius,
+                            -Math.sin(angle) * fanRadius + 4 * scale
+                        );
+                        ctx.stroke();
+                    }
+                    break;
+                    
+                case 'picot-ch3':
+                    // Small solid circle with loop extending up and right
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3 * scale, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Loop extending up and to the right (ch-3 shape)
+                    ctx.beginPath();
+                    ctx.moveTo(2 * scale, -2 * scale);
+                    ctx.quadraticCurveTo(4 * scale, -4 * scale, 6 * scale, -2 * scale);
+                    ctx.stroke();
+                    break;
+                    
+                case 'fpdc':
+                    // T with hook to right
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    // Hook to right
+                    ctx.arc(4 * scale, 6 * scale, 2 * scale, Math.PI, 0, false);
+                    ctx.stroke();
+                    break;
+                    
+                case 'bpdc':
+                    // T with hook to left
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8 * scale);
+                    ctx.lineTo(0, 8 * scale);
+                    ctx.moveTo(-6 * scale, -4 * scale);
+                    ctx.lineTo(6 * scale, -4 * scale);
+                    // Hook to left
+                    ctx.arc(-4 * scale, 6 * scale, 2 * scale, 0, Math.PI, false);
+                    ctx.stroke();
+                    break;
+                    
+                case 'blo':
+                    // Open parenthesis
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.arc(-3 * scale, 0, 3 * scale, -Math.PI / 2, Math.PI / 2, false);
+                    ctx.stroke();
+                    break;
+                    
+                case 'flo':
+                    // Close parenthesis
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.arc(3 * scale, 0, 3 * scale, Math.PI / 2, -Math.PI / 2, false);
+                    ctx.stroke();
+                    break;
+                    
+                default:
+                    // Fallback to text symbol if stitch not found
+                    ctx.font = `bold ${size}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const symbol = stitchSymbols[stitch];
+                    if (symbol) {
+            ctx.fillText(symbol, 0, 0);
+                    } else {
+                        ctx.fillText('?', 0, 0);
+                    }
+            }
+            
+            ctx.restore();
+        }
+
+        function redrawStitches() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            drawShapeGuide();
+            
+            suggestions.forEach(s => {
+                drawStitch(s.x, s.y, s.stitch, s.color, true, s.size, s.rotation);
+            });
+            
+            if (showAllLayers) {
+                layers.forEach((layer, index) => {
+                    if (layer.visible) {
+                        const isActive = index === currentLayerIndex;
+                        layer.stitches.forEach((s, stitchIndex) => {
+                            const isSelected = selectedStitches.includes(stitchIndex);
+                            if (!isActive) {
+                                ctx.globalAlpha = 0.3;
+                                drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
+                                ctx.globalAlpha = 1.0;
+                            } else {
+                                drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
+                            }
+                            // Highlight selected stitches
+                            if (isSelected && isActive) {
+                                ctx.strokeStyle = '#0066ff';
+                                ctx.lineWidth = 2;
+                                ctx.setLineDash([5, 5]);
+                                ctx.strokeRect(s.x - 15, s.y - 15, 30, 30);
+                                ctx.setLineDash([]);
+                            }
+                        });
+                    }
+                });
+            } else {
+                const currentLayer = getCurrentLayer();
+                currentLayer.stitches.forEach((s, stitchIndex) => {
+                    const isSelected = selectedStitches.includes(stitchIndex);
+                    drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
+                    // Highlight selected stitches
+                    if (isSelected) {
+                        ctx.strokeStyle = '#0066ff';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 5]);
+                        ctx.strokeRect(s.x - 15, s.y - 15, 30, 30);
+                        ctx.setLineDash([]);
+                    }
+                });
+            }
+            
+            // Draw selection rectangle
+            if (selectionStart && selectionEnd) {
+                const minX = Math.min(selectionStart.x, selectionEnd.x);
+                const maxX = Math.max(selectionStart.x, selectionEnd.x);
+                const minY = Math.min(selectionStart.y, selectionEnd.y);
+                const maxY = Math.max(selectionStart.y, selectionEnd.y);
+                
+                ctx.strokeStyle = '#0066ff';
+                ctx.fillStyle = 'rgba(0, 102, 255, 0.1)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+                ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+                ctx.setLineDash([]);
+            }
+        }
+
+        // ============================================
+        // TOOL MODES & EVENT HANDLERS
+        // ============================================
+        
+        function setToolMode(mode) {
+            currentToolMode = mode;
+            document.querySelectorAll('.tool-icon[data-tool]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tool === mode);
+            });
+            
+            if (mode === 'erase') {
+                canvas.style.cursor = 'not-allowed';
+            } else if (mode === 'move') {
+                canvas.style.cursor = 'move';
+            } else if (mode === 'select') {
+                canvas.style.cursor = 'crosshair';
+            } else {
+                canvas.style.cursor = 'crosshair';
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            isDrawing = true;
+            
+            if (currentToolMode === 'draw') {
+                handleDrawMode(x, y);
+            } else if (currentToolMode === 'erase') {
+                handleEraseMode(x, y);
+            } else if (currentToolMode === 'line') {
+                lineStartPoint = {x, y};
+            } else if (currentToolMode === 'move') {
+                // Find the stitch under the mouse cursor
+                const stitches = getCurrentStitches();
+                let clickedStitchIndex = null;
+                let minDist = Infinity;
+                
+                for (let i = 0; i < stitches.length; i++) {
+                    const stitch = stitches[i];
+                    const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
+                    if (dist < 20 && dist < minDist) {
+                        minDist = dist;
+                        clickedStitchIndex = i;
+                    }
+                }
+                
+                if (clickedStitchIndex !== null) {
+                    // Start moving this single stitch
+                    const stitch = stitches[clickedStitchIndex];
+                    movingSingleStitch = {
+                        index: clickedStitchIndex,
+                        originalX: stitch.x,
+                        originalY: stitch.y
+                    };
+                    moveStartPoint = {x, y};
+                }
+            } else if (currentToolMode === 'select') {
+                // Check if clicking on already selected stitches to move/rotate them
+                if (selectedStitches.length > 0 && isPointInSelection(x, y)) {
+                    // Check if Shift is pressed for rotation
+                    isRotating = e.shiftKey;
+                    moveStartPoint = {x, y};
+                    const stitches = getCurrentStitches();
+                    movingStitches = selectedStitches.map(index => ({
+                        index: index,
+                        originalX: stitches[index].x,
+                        originalY: stitches[index].y,
+                        originalRotation: stitches[index].rotation || 0
+                    }));
+                } else {
+                    // Start new selection - clear previous selection
+                    selectionStart = {x, y};
+                    selectionEnd = null;
+                    selectedStitches = [];
+                    moveStartPoint = null;
+                    movingStitches = [];
+                    isRotating = false;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (isDrawing) {
+                if (currentToolMode === 'draw') {
+                    handleDrawMode(x, y);
+                } else if (currentToolMode === 'erase') {
+                    handleEraseMode(x, y);
+                } else if (currentToolMode === 'move') {
+                    // Move single stitch
+                    if (movingSingleStitch && moveStartPoint) {
+                        handleMoveSingleStitch(x, y);
+                    }
+                } else if (currentToolMode === 'select') {
+                    // Check if we're moving/rotating selected stitches or creating new selection
+                    if (moveStartPoint && movingStitches.length > 0) {
+                        // Move or rotate selected stitches
+                        handleMoveSelectedStitches(x, y);
+                    } else if (selectionStart) {
+                        // Update selection end point while dragging
+                        selectionEnd = {x, y};
+                        redrawStitches();
+                    }
+                }
+            } else if (currentToolMode === 'move') {
+                // Check if mouse is over a stitch
+                const stitches = getCurrentStitches();
+                let isOverStitch = false;
+                
+                for (let i = 0; i < stitches.length; i++) {
+                    const stitch = stitches[i];
+                    const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
+                    if (dist < 20) {
+                        isOverStitch = true;
+                        break;
+                    }
+                }
+                
+                canvas.style.cursor = isOverStitch ? 'move' : 'default';
+            } else if (currentToolMode === 'select') {
+                // Check if mouse is over selected area - prepare for moving/rotating
+                if (selectedStitches.length > 0) {
+                    const isOverSelection = isPointInSelection(x, y);
+                    if (isOverSelection) {
+                        canvas.style.cursor = e.shiftKey ? 'grab' : 'move';
+                    } else {
+                        canvas.style.cursor = 'crosshair';
+                    }
+                } else {
+                    canvas.style.cursor = 'crosshair';
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (currentToolMode === 'line' && lineStartPoint) {
+                drawLine(lineStartPoint.x, lineStartPoint.y, x, y);
+                lineStartPoint = null;
+                linePreview = null;
+            } else if (currentToolMode === 'move') {
+                // Finish moving single stitch
+                if (movingSingleStitch) {
+                    movingSingleStitch = null;
+                    moveStartPoint = null;
+                }
+            } else if (currentToolMode === 'select') {
+                if (selectionStart && selectionEnd) {
+                    // Finalize selection - find stitches in selection area
+                    findStitchesInSelection();
+                    selectionStart = null;
+                    selectionEnd = null;
+                } else if (selectedStitches.length > 0 && moveStartPoint) {
+                    // Finish moving/rotating selected stitches
+                    moveStartPoint = null;
+                    movingStitches = [];
+                    isRotating = false;
+                }
+            }
+            
+            isDrawing = false;
+            redrawStitches();
+        });
+
+        function handleDrawMode(x, y) {
+            const stitches = getCurrentStitches();
+            
+            let clickedSuggestion = null;
+            for (let i = 0; i < suggestions.length; i++) {
+                const s = suggestions[i];
+                const dist = Math.sqrt(Math.pow(x - s.x, 2) + Math.pow(y - s.y, 2));
+                if (dist < 20) {
+                    clickedSuggestion = i;
+                    break;
+                }
+            }
+            
+            if (clickedSuggestion !== null) {
+                const suggestion = suggestions[clickedSuggestion];
+                stitches.push({
+                    x: suggestion.x,
+                    y: suggestion.y,
+                    stitch: suggestion.stitch,
+                    color: suggestion.color,
+                    size: suggestion.size,
+                    rotation: suggestion.rotation
+                });
+                suggestions.splice(clickedSuggestion, 1);
+            } else {
+                // Check if point is too close to existing stitches
+                const minDistance = 20;
+                let tooClose = false;
+                
+                for (let i = 0; i < stitches.length; i++) {
+                    const stitch = stitches[i];
+                    const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
+                    if (dist < minDistance) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                
+                // Only add stitch if it's not too close to existing stitches
+                if (!tooClose) {
+                const points = applySymmetry(x, y);
+                
+                points.forEach(point => {
+                        // Check distance for each symmetry point as well
+                        let pointTooClose = false;
+                        for (let i = 0; i < stitches.length; i++) {
+                            const stitch = stitches[i];
+                            const dist = Math.sqrt(Math.pow(point.x - stitch.x, 2) + Math.pow(point.y - stitch.y, 2));
+                            if (dist < minDistance) {
+                                pointTooClose = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!pointTooClose) {
+                    const center = getCenter();
+                    const angleFromCenter = Math.atan2(point.y - center.y, point.x - center.x);
+                    const rotationTowardsCenter = (angleFromCenter * 180 / Math.PI) + 180 + currentRotation;
+                    
+                    stitches.push({
+                        x: point.x,
+                        y: point.y,
+                        stitch: currentStitch,
+                        color: currentColor,
+                        size: currentStitchSize,
+                        rotation: rotationTowardsCenter
+                    });
+                        }
+                });
+                }
+            }
+            
+            analyzePattern();
+            redrawStitches();
+            updateRoundsList();
+        }
+
+        function findStitchesInSelection() {
+            if (!selectionStart || !selectionEnd) return;
+            
+            const minX = Math.min(selectionStart.x, selectionEnd.x);
+            const maxX = Math.max(selectionStart.x, selectionEnd.x);
+            const minY = Math.min(selectionStart.y, selectionEnd.y);
+            const maxY = Math.max(selectionStart.y, selectionEnd.y);
+            
+            const stitches = getCurrentStitches();
+            selectedStitches = [];
+            
+            stitches.forEach((stitch, index) => {
+                if (stitch.x >= minX && stitch.x <= maxX && 
+                    stitch.y >= minY && stitch.y <= maxY) {
+                    selectedStitches.push(index);
+                }
+            });
+        }
+        
+        function isPointInSelection(x, y) {
+            if (selectedStitches.length === 0) return false;
+            
+            const stitches = getCurrentStitches();
+            const selectedBounds = {
+                minX: Infinity,
+                maxX: -Infinity,
+                minY: Infinity,
+                maxY: -Infinity
+            };
+            
+            selectedStitches.forEach(index => {
+                const stitch = stitches[index];
+                selectedBounds.minX = Math.min(selectedBounds.minX, stitch.x - 15);
+                selectedBounds.maxX = Math.max(selectedBounds.maxX, stitch.x + 15);
+                selectedBounds.minY = Math.min(selectedBounds.minY, stitch.y - 15);
+                selectedBounds.maxY = Math.max(selectedBounds.maxY, stitch.y + 15);
+            });
+            
+            return x >= selectedBounds.minX && x <= selectedBounds.maxX &&
+                   y >= selectedBounds.minY && y <= selectedBounds.maxY;
+        }
+        
+        function handleMoveSingleStitch(x, y) {
+            if (!moveStartPoint || !movingSingleStitch) return;
+            
+            const dx = x - moveStartPoint.x;
+            const dy = y - moveStartPoint.y;
+            const stitches = getCurrentStitches();
+            
+            if (stitches[movingSingleStitch.index]) {
+                stitches[movingSingleStitch.index].x = movingSingleStitch.originalX + dx;
+                stitches[movingSingleStitch.index].y = movingSingleStitch.originalY + dy;
+            }
+            
+            redrawStitches();
+        }
+        
+        function getSelectionCenter() {
+            if (selectedStitches.length === 0) return null;
+            
+            const stitches = getCurrentStitches();
+            let sumX = 0, sumY = 0;
+            
+            selectedStitches.forEach(index => {
+                sumX += stitches[index].x;
+                sumY += stitches[index].y;
+            });
+            
+            return {
+                x: sumX / selectedStitches.length,
+                y: sumY / selectedStitches.length
+            };
+        }
+        
+        function handleMoveSelectedStitches(x, y) {
+            if (!moveStartPoint || movingStitches.length === 0) return;
+            
+            const stitches = getCurrentStitches();
+            
+            if (isRotating) {
+                // Rotate selected stitches around their center
+                const center = getSelectionCenter();
+                if (!center) return;
+                
+                const startAngle = Math.atan2(moveStartPoint.y - center.y, moveStartPoint.x - center.x);
+                const currentAngle = Math.atan2(y - center.y, x - center.x);
+                const deltaAngle = (currentAngle - startAngle) * 180 / Math.PI;
+                
+                movingStitches.forEach(moveData => {
+                    const stitch = stitches[moveData.index];
+                    const originalAngle = Math.atan2(moveData.originalY - center.y, moveData.originalX - center.x);
+                    const newAngle = originalAngle + (deltaAngle * Math.PI / 180);
+                    const distance = Math.sqrt(
+                        Math.pow(moveData.originalX - center.x, 2) + 
+                        Math.pow(moveData.originalY - center.y, 2)
+                    );
+                    
+                    stitch.x = center.x + Math.cos(newAngle) * distance;
+                    stitch.y = center.y + Math.sin(newAngle) * distance;
+                    
+                    // Also rotate the stitch itself
+                    stitch.rotation = (moveData.originalRotation || 0) + deltaAngle;
+                });
+            } else {
+                // Move selected stitches
+                const dx = x - moveStartPoint.x;
+                const dy = y - moveStartPoint.y;
+                
+                movingStitches.forEach(moveData => {
+                    const stitch = stitches[moveData.index];
+                    stitch.x = moveData.originalX + dx;
+                    stitch.y = moveData.originalY + dy;
+                });
+            }
+            
+            redrawStitches();
+        }
+        
+        function handleEraseMode(x, y) {
+            const stitches = getCurrentStitches();
+            
+            for (let i = stitches.length - 1; i >= 0; i--) {
+                const s = stitches[i];
+                const dist = Math.sqrt((s.x - x) ** 2 + (s.y - y) ** 2);
+                if (dist < 20) {
+                    stitches.splice(i, 1);
+                }
+            }
+            
+            analyzePattern();
+            redrawStitches();
+            updateRoundsList();
+        }
+
+        function drawLine(x1, y1, x2, y2) {
+            const stitches = getCurrentStitches();
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const steps = Math.floor(distance / 30);
+            
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const x = x1 + (x2 - x1) * t;
+                const y = y1 + (y2 - y1) * t;
+                
+                const center = getCenter();
+                const angleFromCenter = Math.atan2(y - center.y, x - center.x);
+                const rotationTowardsCenter = (angleFromCenter * 180 / Math.PI) + 180 + currentRotation;
+                
+                stitches.push({
+                    x: x,
+                    y: y,
+                    stitch: currentStitch,
+                    color: currentColor,
+                    size: currentStitchSize,
+                    rotation: rotationTowardsCenter
+                });
+            }
+            
+            analyzePattern();
+            redrawStitches();
+            updateRoundsList();
+        }
+
+        // ============================================
+        // SYMMETRY
+        // ============================================
+        
+        function applySymmetry(x, y) {
+            const center = getCenter();
+            const points = [{x, y}];
+            
+            if (symmetryMode === 'mirror-h') {
+                points.push({x, y: center.y * 2 - y});
+            } else if (symmetryMode === 'mirror-v') {
+                points.push({x: center.x * 2 - x, y});
+            } else if (symmetryMode === 'mirror-both') {
+                points.push({x, y: center.y * 2 - y});
+                points.push({x: center.x * 2 - x, y});
+                points.push({x: center.x * 2 - x, y: center.y * 2 - y});
+            } else if (symmetryMode.startsWith('radial-')) {
+                const divisions = parseInt(symmetryMode.split('-')[1]);
+                const angle = Math.atan2(y - center.y, x - center.x);
+                const radius = Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
+                
+                for (let i = 1; i < divisions; i++) {
+                    const newAngle = angle + (Math.PI * 2 * i / divisions);
+                    points.push({
+                        x: center.x + Math.cos(newAngle) * radius,
+                        y: center.y + Math.sin(newAngle) * radius
+                    });
+                }
+            }
+            
+            return points;
+        }
+
+        function updateSymmetryMode() {
+            symmetryMode = document.getElementById('propSymmetry').value;
+            // Update modal if it's open
+            const modal = document.getElementById('symmetryModal');
+            if (modal && modal.style.display === 'block') {
+                updateSymmetryModalDisplay();
+            }
+        }
+
+        // ============================================
+        // PATTERN ANALYSIS & AUTO-CONTINUE
+        // ============================================
+        
+        function analyzePattern() {
+            const stitches = getCurrentStitches();
+            
+            if (!autoContinueEnabled || stitches.length < 3) {
+                suggestions = [];
+                updateAutoStatus();
+                return;
+            }
+
+            const center = getCenter();
+            const radiusGroups = {};
+            const tolerance = 15;
+            
+            stitches.forEach(stitch => {
+                const radius = getDistanceFromCenter(stitch.x, stitch.y);
+                let found = false;
+                
+                for (let r in radiusGroups) {
+                    if (Math.abs(radius - r) < tolerance) {
+                        radiusGroups[r].push(stitch);
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (!found) {
+                    radiusGroups[radius] = [stitch];
+                }
+            });
+
+            suggestions = [];
+            for (let radius in radiusGroups) {
+                const group = radiusGroups[radius];
+                
+                if (group.length >= 3) {
+                    const angles = group.map(s => getAngleFromCenter(s.x, s.y)).sort((a, b) => a - b);
+                    
+                    let totalDiff = 0;
+                    for (let i = 1; i < angles.length; i++) {
+                        totalDiff += angles[i] - angles[i-1];
+                    }
+                    const avgDiff = totalDiff / (angles.length - 1);
+                    
+                    const avgSize = group.reduce((sum, s) => sum + (s.size || 22), 0) / group.length;
+                    const avgRotation = group.reduce((sum, s) => sum + (s.rotation || 0), 0) / group.length;
+                    
+                    const r = parseFloat(radius);
+                    let currentAngle = angles[angles.length - 1];
+                    const maxStitches = Math.floor((Math.PI * 2) / avgDiff);
+                    
+                    for (let i = 0; i < maxStitches - group.length; i++) {
+                        currentAngle += avgDiff;
+                        if (currentAngle > Math.PI * 2) break;
+                        
+                        const x = center.x + Math.cos(currentAngle) * r;
+                        const y = center.y + Math.sin(currentAngle) * r;
+                        
+                        let tooClose = false;
+                        for (let stitch of stitches) {
+                            const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
+                            if (dist < 20) {
+                                tooClose = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!tooClose) {
+                            suggestions.push({
+                                x: x,
+                                y: y,
+                                stitch: group[0].stitch,
+                                color: group[0].color,
+                                size: avgSize,
+                                rotation: avgRotation,
+                                radius: r,
+                                angle: currentAngle
+                            });
+                        }
+                    }
+                    
+                    break;
+                }
+            }
+
+            updateAutoStatus();
+        }
+
+        function updateAutoStatus() {
+            const status = document.getElementById('autoStatus');
+            if (!status) return;
+            
+            if (suggestions.length > 0) {
+                status.className = 'auto-status active';
+                status.innerHTML = `✓ Muster tuvastatud!<br>${suggestions.length} soovitust saadaval`;
+            } else if (getCurrentStitches().length >= 3) {
+                status.className = 'auto-status';
+                status.innerHTML = '⚠️ Muster ei ole veel selge';
+            } else {
+                status.className = 'auto-status';
+                status.innerHTML = 'Lisa 3 silmust samal ringil';
+            }
+        }
+
+        function toggleAutoContinue() {
+            autoContinueEnabled = document.getElementById('autoContinue').checked;
+            if (!autoContinueEnabled) {
+                suggestions = [];
+            } else {
+                analyzePattern();
+            }
+            redrawStitches();
+        }
+
+        // ============================================
+        // LAYER MANAGEMENT
+        // ============================================
+        
+        function addNewLayer() {
+            const newLayer = {
+                id: nextLayerId++,
+                name: `Round ${layers.length + 1}`,
+                stitches: [],
+                visible: true
+            };
+            
+            layers.push(newLayer);
+            currentLayerIndex = layers.length - 1;
+            suggestions = [];
+            
+            updateRoundsList();
+            redrawStitches();
+        }
+
+        function previousLayer() {
+            if (currentLayerIndex > 0) {
+                currentLayerIndex--;
+                suggestions = [];
+                analyzePattern();
+                updateRoundsList();
+                redrawStitches();
+            }
+        }
+
+        function nextLayer() {
+            if (currentLayerIndex < layers.length - 1) {
+                currentLayerIndex++;
+                suggestions = [];
+                analyzePattern();
+                updateRoundsList();
+                redrawStitches();
+            }
+        }
+
+        function toggleShowAllLayers() {
+            showAllLayers = document.getElementById('showAllLayers').checked;
+            redrawStitches();
+        }
+
+        // ============================================
+        // PROPERTY UPDATES
+        // ============================================
+        
+        function updateStitchSize() {
+            currentStitchSize = parseInt(document.getElementById('propStitchSize').value);
+        }
+
+        function updateRotation() {
+            currentRotation = parseInt(document.getElementById('propRotation').value);
+        }
+
+        function updateColor() {
+            currentColor = document.getElementById('propColor').value;
+        }
+
+        function changeShape() {
+            currentShape = document.getElementById('propShape').value;
+            redrawStitches();
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        
+        function savePattern() {
+            const link = document.createElement('a');
+            link.download = `heegelmotiiv_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function saveJSON() {
+            const data = {
+                shape: currentShape,
+                size: canvas.width,
+                layers: layers,
+                currentLayerIndex: currentLayerIndex,
+                date: new Date().toISOString()
+            };
+            
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `heegelmotiiv_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function clearAllStitches() {
+            // Ask for confirmation
+            const totalStitches = layers.reduce((total, layer) => total + layer.stitches.length, 0);
+            
+            if (totalStitches === 0) {
+                return; // Nothing to clear
+            }
+            
+            const confirmMessage = `Kas oled kindel, et soovid kustutada kõik ${totalStitches} pisteid kõigilt ${layers.length} round'ilt?\n\nSee toiming on pöördumatu!`;
+            
+            if (!confirm(confirmMessage)) {
+                return; // User cancelled
+            }
+            
+            // Clear all stitches from all layers
+            layers.forEach(layer => {
+                layer.stitches = [];
+            });
+            
+            // Clear suggestions
+            suggestions = [];
+            
+            // Reset to first layer
+            currentLayerIndex = 0;
+            
+            // Update UI
+            updateRoundsList();
+            redrawStitches();
+            analyzePattern();
+            
+            // Update status
+            const statusText = document.getElementById('statusText');
+            if (statusText) {
+                statusText.textContent = 'Kõik pisted kustutatud';
+                setTimeout(() => {
+                    statusText.textContent = 'Ready';
+                }, 2000);
+            }
+        }
+
+        function loadJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        currentShape = data.shape;
+                        canvas.width = data.size;
+                        canvas.height = data.size;
+                        
+                        if (data.layers) {
+                            layers = data.layers;
+                            currentLayerIndex = data.currentLayerIndex || 0;
+                            nextLayerId = Math.max(...layers.map(l => l.id)) + 1;
+                        }
+                        
+                        suggestions = [];
+                        
+                        document.getElementById('propShape').value = currentShape;
+                        
+                        analyzePattern();
+                        updateRoundsList();
+                        redrawStitches();
+                    } catch (error) {
+                        alert('Viga motiivi laadimisel: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // ============================================
+        // ZOOM & OTHER UTILITIES
+        // ============================================
+        
+        function zoom(delta) {
+            // Placeholder for zoom functionality
+            console.log('Zoom:', delta);
+        }
+
+        function toggleSymmetryModal() {
+            const modal = document.getElementById('symmetryModal');
+            modal.style.display = 'block';
+            updateSymmetryModalDisplay();
+        }
+
+        function closeSymmetryModal() {
+            document.getElementById('symmetryModal').style.display = 'none';
+        }
+
+        function selectSymmetryMode(mode) {
+            symmetryMode = mode;
+            
+            // Update dropdown in properties panel
+            const dropdown = document.getElementById('propSymmetry');
+            if (dropdown) {
+                dropdown.value = mode;
+            }
+            
+            // Update modal display
+            updateSymmetryModalDisplay();
+            
+            // Update selected state in modal
+            document.querySelectorAll('.symmetry-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            const selectedOption = document.querySelector(`.symmetry-option[data-mode="${mode}"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected');
+            }
+        }
+
+        function updateSymmetryModalDisplay() {
+            const display = document.getElementById('currentSymmetryDisplay');
+            if (!display) return;
+            
+            const modeNames = {
+                'none': 'Väljas',
+                'mirror-h': 'Peegel H',
+                'mirror-v': 'Peegel V',
+                'mirror-both': 'Peegel Mõlemad',
+                'radial-4': 'Radiaalne 4',
+                'radial-6': 'Radiaalne 6',
+                'radial-8': 'Radiaalne 8'
+            };
+            
+            display.textContent = modeNames[symmetryMode] || 'Väljas';
+            
+            // Update selected state
+            document.querySelectorAll('.symmetry-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            const selectedOption = document.querySelector(`.symmetry-option[data-mode="${symmetryMode}"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected');
+            }
+        }
+
+        // Close symmetry modal when clicking outside
+        window.onclick = function(event) {
+            const symmetryModal = document.getElementById('symmetryModal');
+            const crochetModal = document.getElementById('crochetChartModal');
+            if (event.target === symmetryModal) {
+                closeSymmetryModal();
+            }
+            if (event.target === crochetModal) {
+                closeCrochetChartModal();
+            }
+        }
+
+        function closeCustomStitchModal() {
+            document.getElementById('customStitchModal').style.display = 'none';
+        }
+
+        // ============================================
+        // CROCHET CHART MODAL
+        // ============================================
+        
+        let selectedChartStitch = null;
+        let currentChartCategory = 'basic';
+
+        function openCrochetChartModal() {
+            const modal = document.getElementById('crochetChartModal');
+            modal.style.display = 'block';
+            selectedChartStitch = null;
+            renderChartCategories();
+            renderChartStitches('basic');
+        }
+
+        function closeCrochetChartModal() {
+            document.getElementById('crochetChartModal').style.display = 'none';
+            selectedChartStitch = null;
+        }
+
+        function renderChartCategories() {
+            const container = document.getElementById('chartCategories');
+            container.innerHTML = '';
+            
+            Object.keys(stitchCategories).forEach(categoryId => {
+                const btn = document.createElement('button');
+                btn.className = 'chart-category-btn' + (categoryId === currentChartCategory ? ' active' : '');
+                btn.textContent = stitchCategories[categoryId].name;
+                btn.onclick = () => {
+                    currentChartCategory = categoryId;
+                    renderChartCategories();
+                    renderChartStitches(categoryId);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderChartStitches(categoryId) {
+            const grid = document.getElementById('chartStitchesGrid');
+            grid.innerHTML = '';
+            
+            const category = stitchCategories[categoryId];
+            if (!category) return;
+            
+            category.stitches.forEach(stitchId => {
+                const item = document.createElement('div');
+                item.className = 'chart-stitch-item';
+                item.innerHTML = `
+                    ${stitchSymbols[stitchId] || '?'}
+                    <div class="stitch-tooltip">${stitchNames[stitchId] || stitchId}</div>
+                `;
+                item.onclick = () => {
+                    // Remove previous selection
+                    document.querySelectorAll('.chart-stitch-item').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    // Add selection to clicked item
+                    item.classList.add('selected');
+                    selectedChartStitch = stitchId;
+                    
+                    // Update info
+                    const info = document.getElementById('selectedStitchInfo');
+                    info.textContent = `Valitud: ${stitchNames[stitchId] || stitchId}`;
+                    
+                    // Enable add button
+                    const addBtn = document.getElementById('addStitchBtn');
+                    addBtn.disabled = false;
+                    addBtn.style.opacity = '1';
+                    addBtn.style.cursor = 'pointer';
+                };
+                grid.appendChild(item);
+            });
+            
+            // Reset info
+            const info = document.getElementById('selectedStitchInfo');
+            info.textContent = 'Vali piste...';
+            const addBtn = document.getElementById('addStitchBtn');
+            addBtn.disabled = true;
+            addBtn.style.opacity = '0.5';
+        }
+
+        function selectStitchFromChart() {
+            if (!selectedChartStitch) return;
+            
+            currentStitch = selectedChartStitch;
+            updateStitchPalette();
+            updateProperties();
+            closeCrochetChartModal();
+        }
+
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDark = body.classList.contains('dark-mode');
+            const toggleBtn = document.getElementById('darkModeToggle');
+            
+            if (isDark) {
+                body.classList.remove('dark-mode');
+                toggleBtn.innerHTML = '🌙';
+                toggleBtn.title = 'Dark Mode';
+                localStorage.setItem('darkMode', 'false');
+            } else {
+                body.classList.add('dark-mode');
+                toggleBtn.innerHTML = '☀️';
+                toggleBtn.title = 'Light Mode';
+                localStorage.setItem('darkMode', 'true');
+            }
+            
+            // Redraw canvas to update grid colors
+            redrawStitches();
+        }
+
+        function initDarkMode() {
+            const savedDarkMode = localStorage.getItem('darkMode');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Use saved preference, or system preference, or default to light
+            const shouldBeDark = savedDarkMode === 'true' || (savedDarkMode === null && prefersDark);
+            
+            if (shouldBeDark) {
+                document.body.classList.add('dark-mode');
+                const toggleBtn = document.getElementById('darkModeToggle');
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '☀️';
+                    toggleBtn.title = 'Light Mode';
+                }
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 's') {
+                    e.preventDefault();
+                    saveJSON();
+                }
+            }
+        });
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
+        console.log('All functions defined, starting initialization...');
+        
+        // Initialize dark mode first (before UI)
+        initDarkMode();
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initUI);
+        } else {
+            // DOM already loaded
+            initUI();
+        }
+        
+        console.log('✓ Professional Crochet Editor Ready!');
+    </script>
+</body>
+</html>
