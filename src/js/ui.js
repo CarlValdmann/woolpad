@@ -20,6 +20,7 @@ window.toggleShowAllLayers = toggleShowAllLayers;
 window.updateStitchSize = updateStitchSize;
 window.updateRotation = updateRotation;
 window.updateColor = updateColor;
+window.updateCanvasSize = updateCanvasSize;
 window.changeShape = changeShape;
 window.savePattern = savePattern;
 window.saveJSON = saveJSON;
@@ -201,6 +202,17 @@ export function createRightSidebar() {
                 <option value="radial-4">Radiaalne 4</option>
                 <option value="radial-6">Radiaalne 6</option>
                 <option value="radial-8">Radiaalne 8</option>
+            </select>
+        </div>
+        <div class="property-row">
+            <span class="property-label">Canvas suurus:</span>
+            <select class="property-value" id="propCanvasSize" onchange="updateCanvasSize()">
+                <option value="400" ${state.canvasSize === 400 ? 'selected' : ''}>400x400</option>
+                <option value="500" ${state.canvasSize === 500 ? 'selected' : ''}>500x500</option>
+                <option value="600" ${(!state.canvasSize || state.canvasSize === 600) ? 'selected' : ''}>600x600</option>
+                <option value="800" ${state.canvasSize === 800 ? 'selected' : ''}>800x800</option>
+                <option value="1000" ${state.canvasSize === 1000 ? 'selected' : ''}>1000x1000</option>
+                <option value="1200" ${state.canvasSize === 1200 ? 'selected' : ''}>1200x1200</option>
             </select>
         </div>
     `;
@@ -500,6 +512,21 @@ export function changeShape() {
     redrawStitches();
 }
 
+export function updateCanvasSize() {
+    const canvas = document.getElementById('canvas');
+    if (!canvas) return;
+    
+    const newSize = parseInt(document.getElementById('propCanvasSize').value);
+    state.canvasSize = newSize;
+    
+    // Update canvas dimensions
+    canvas.width = newSize;
+    canvas.height = newSize;
+    
+    // Redraw everything
+    redrawStitches();
+}
+
 // Export Functions
 export async function exportToPDF() {
     try {
@@ -654,8 +681,16 @@ export function loadJSON() {
                 const canvas = document.getElementById('canvas');
                 
                 setCurrentShape(data.shape);
-                canvas.width = data.size;
-                canvas.height = data.size;
+                const size = data.size || 600;
+                canvas.width = size;
+                canvas.height = size;
+                state.canvasSize = size;
+                
+                // Update canvas size dropdown
+                const canvasSizeSelect = document.getElementById('propCanvasSize');
+                if (canvasSizeSelect) {
+                    canvasSizeSelect.value = size;
+                }
                 
                 if (data.layers) {
                     state.layers = data.layers;

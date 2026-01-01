@@ -58,7 +58,10 @@ export const state = {
     currentChartCategory: 'basic',
     
     // Canvas zoom
-    zoomLevel: 1.0
+    zoomLevel: 1.0,
+    
+    // Canvas size
+    canvasSize: 600
 };
 
 // Getters

@@ -13,6 +13,37 @@ import { redrawStitches, getCanvas } from './canvas.js';
 import { getCurrentStitches } from './state.js';
 import { undo, redo } from './history.js';
 
+/**
+ * Teisendab hiire koordinaadid canvas'i koordinaatideks, arvestades zoom taset
+ * Arvestab CSS transform scale ja transform-origin center center
+ */
+function getCanvasCoordinates(e) {
+    const canvas = getCanvas();
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    const scale = state.zoomLevel || 1.0;
+    
+    // Hiire koordinaadid suhtes canvas'i bounding rect'i (scaled space)
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Canvas'i keskpunkt scaled rect'is
+    const scaledCenterX = rect.width / 2;
+    const scaledCenterY = rect.height / 2;
+    
+    // Teisenda keskpunkti suhtes (transform-origin center center)
+    const offsetX = mouseX - scaledCenterX;
+    const offsetY = mouseY - scaledCenterY;
+    
+    // Jagage zoom tasemega, et saada canvas'i koordinaadid keskpunkti suhtes
+    // Siis liida canvas'i keskpunkt
+    const canvasX = (offsetX / scale) + (canvas.width / 2);
+    const canvasY = (offsetY / scale) + (canvas.height / 2);
+    
+    return { x: canvasX, y: canvasY };
+}
+
 // Initialize dark mode first (before UI initialization)
 // This will set default color to white if dark mode is active
 initDarkMode();
@@ -42,9 +73,9 @@ function setupEventListeners() {
     
     // Mouse down
     canvas.addEventListener('mousedown', async (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const coords = getCanvasCoordinates(e);
+        const x = coords.x;
+        const y = coords.y;
         
         state.isDrawing = true;
         
@@ -226,9 +257,9 @@ function setupEventListeners() {
     
     // Mouse move
     canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const coords = getCanvasCoordinates(e);
+        const x = coords.x;
+        const y = coords.y;
         
         if (state.isDrawing) {
             if (state.currentToolMode === 'draw') {
@@ -318,9 +349,9 @@ function setupEventListeners() {
     
     // Mouse up
     canvas.addEventListener('mouseup', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const coords = getCanvasCoordinates(e);
+        const x = coords.x;
+        const y = coords.y;
         
         if (state.currentToolMode === 'line' && state.lineStartPoint) {
             // Only draw line if there's a meaningful distance

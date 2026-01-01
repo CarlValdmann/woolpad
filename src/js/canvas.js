@@ -22,6 +22,12 @@ export function initCanvas(canvasElement) {
             throw new Error('Canvas või context ei leitud');
         }
         
+        // Set canvas size from state (default to 600 if not set)
+        const size = state.canvasSize || 600;
+        canvas.width = size;
+        canvas.height = size;
+        state.canvasSize = size;
+        
         // Initialize zoom to 100%
         state.zoomLevel = 1.0;
         const zoomLevelEl = document.getElementById('zoomLevel');
