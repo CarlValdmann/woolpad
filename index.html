@@ -759,6 +759,33 @@
             border-color: #6B8CAE;
         }
 
+        .zoom-controls-top {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .zoom-btn-top {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.2s;
+            color: #333;
+        }
+
+        .zoom-btn-top:hover {
+            background: #f8f8f8;
+            border-color: #6B8CAE;
+        }
+
         /* Dark Mode */
         body.dark-mode {
             background: #0d0d0d;
@@ -1000,6 +1027,21 @@
             border-color: #6B8CAE;
         }
 
+        body.dark-mode .zoom-btn-top {
+            background: #1a1a1a;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .zoom-btn-top:hover {
+            background: #2a2a2a;
+            border-color: #6B8CAE;
+        }
+
+        body.dark-mode #zoomLevel {
+            color: #e0e0e0;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .right-sidebar {
@@ -1034,8 +1076,17 @@
                 <button class="menu-btn">Templates</button>
             </div>
             <div class="menu-right">
+                <!-- Zoom Controls -->
+                <div class="zoom-controls-top" style="display: flex; align-items: center; gap: 8px; margin-right: 10px;">
+                    <button class="zoom-btn-top" onclick="zoom(-0.1)" title="Zoom out">−</button>
+                    <span id="zoomLevel" style="font-size: 14px; font-weight: 500; color: #333; min-width: 50px; text-align: center;">100%</span>
+                    <button class="zoom-btn-top" onclick="zoom(0.1)" title="Zoom in">+</button>
+                </div>
                 <button class="menu-btn" onclick="toggleSymmetryModal()">
                     🔄 Symmetry
+                </button>
+                <button class="menu-btn" id="exportPDFBtn" onclick="exportToPDF()">
+                    📄 Export PDF
                 </button>
                 <button class="menu-btn" onclick="clearAllStitches()" style="color: #d32f2f;">
                     🗑️ Clear
@@ -1071,10 +1122,42 @@
         <!-- Status Bar -->
         <div class="status-bar">
             <div id="statusText">Ready</div>
-            <div class="zoom-controls">
-                <button class="zoom-btn" onclick="zoom(-0.1)">−</button>
-                <span id="zoomLevel">100%</span>
-                <button class="zoom-btn" onclick="zoom(0.1)">+</button>
+        </div>
+    </div>
+
+    <!-- Add Note Modal -->
+    <div id="noteModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>📝 Lisa märkus</h2>
+                <button class="close-btn" onclick="closeNoteModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <textarea id="noteText" placeholder="Sisesta märkuse tekst..." style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+                <div style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="menu-btn" onclick="closeNoteModal()">Tühista</button>
+                    <button class="menu-btn" onclick="saveNote()" style="background: #6B8CAE; color: white; border: none;">Salvesta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Note Modal -->
+    <div id="editNoteModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>✏️ Muuda märkust</h2>
+                <button class="close-btn" onclick="closeEditNoteModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <textarea id="editNoteText" placeholder="Sisesta märkuse tekst..." style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+                <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <button class="menu-btn" onclick="deleteCurrentNote()" style="background: #d32f2f; color: white; border: none;">Kustuta</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="menu-btn" onclick="closeEditNoteModal()">Tühista</button>
+                        <button class="menu-btn" onclick="saveEditedNote()" style="background: #6B8CAE; color: white; border: none;">Salvesta</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1244,9 +1327,17 @@
         </div>
     </div>
 
+    <!-- jsPDF library for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Load JavaScript modules -->
+    <script type="module" src="src/js/main.js"></script>
+    
+    <!-- Old inline script commented out - using modules now -->
+    <!--
     <script>
         // ============================================
-        // CONFIGURATION & STATE
+        // OLD CODE - Replaced by modules
         // ============================================
         
         let currentStitch = 'chain';
@@ -3410,6 +3501,7 @@
         }
         
         console.log('✓ Professional Crochet Editor Ready!');
+        */
     </script>
 </body>
 </html>
