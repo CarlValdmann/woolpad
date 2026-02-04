@@ -182,9 +182,9 @@
             flex: 1;
             background: #fafafa;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0;
             overflow: auto;
             position: relative;
         }
@@ -1042,6 +1042,178 @@
             color: #e0e0e0;
         }
 
+        body.dark-mode .hamburger-menu span {
+            background: #e0e0e0;
+        }
+
+        body.dark-mode .bottom-toolbar {
+            background: #1a1a1a;
+            border-top-color: #2a2a2a;
+        }
+
+        body.dark-mode .sidebar-drawer {
+            background: #1a1a1a;
+        }
+
+        body.dark-mode .drawer-header {
+            background: #1a1a1a;
+            border-bottom-color: #2a2a2a;
+        }
+
+        body.dark-mode .drawer-header h2 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .drawer-close {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .drawer-close:hover {
+            color: #6B8CAE;
+        }
+
+        /* Hamburger Menu Button */
+        .hamburger-menu {
+            display: none;
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px;
+            margin-right: 10px;
+        }
+
+        .hamburger-menu span {
+            width: 24px;
+            height: 2px;
+            background: #333;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .hamburger-menu.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .hamburger-menu.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-menu.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
+        /* Bottom Toolbar (Mobile) */
+        .bottom-toolbar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 8px 4px;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .bottom-toolbar::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .bottom-toolbar::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 2px;
+        }
+
+        .bottom-toolbar .toolbar-section {
+            display: flex;
+            flex-direction: row;
+            gap: 6px;
+            align-items: center;
+            padding: 0 8px;
+            min-width: min-content;
+        }
+
+        .bottom-toolbar .tool-icon {
+            flex-shrink: 0;
+        }
+
+        /* Sidebar Drawer (Mobile) */
+        .sidebar-drawer {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 85%;
+            max-width: 400px;
+            height: 100vh;
+            background: white;
+            z-index: 2000;
+            transition: right 0.3s ease;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+
+        .sidebar-drawer.open {
+            right: 0;
+        }
+
+        .drawer-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .drawer-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .drawer-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .drawer-close {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: transparent;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .right-sidebar {
@@ -1050,14 +1222,219 @@
         }
 
         @media (max-width: 768px) {
+            /* Hide desktop elements */
             .left-toolbar {
-                width: 60px;
+                display: none;
             }
-            
-            .tool-icon {
+
+            .right-sidebar {
+                display: none;
+            }
+
+            /* Show mobile elements */
+            .hamburger-menu {
+                display: flex;
+            }
+
+            .bottom-toolbar {
+                display: block;
+            }
+
+            /* Top menu adjustments */
+            .top-menu {
+                padding: 8px 10px;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .menu-left {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .app-title {
+                font-size: 16px;
+                margin-right: 6px;
+                white-space: nowrap;
+            }
+
+            .tab-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            .menu-right {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+                align-items: center;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .menu-right::-webkit-scrollbar {
+                display: none;
+            }
+
+            .menu-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+                min-height: 32px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            .icon-btn {
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+                min-height: 32px;
+                font-size: 16px;
+                flex-shrink: 0;
+            }
+
+            .zoom-controls-top {
+                margin-right: 4px;
+                gap: 4px;
+                flex-shrink: 0;
+            }
+
+            .zoom-btn-top {
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+                min-height: 32px;
+                font-size: 14px;
+            }
+
+            #zoomLevel {
+                font-size: 12px;
+                min-width: 45px;
+            }
+
+            /* Canvas area - full screen */
+            .canvas-area {
+                padding: 0;
+                margin-bottom: 70px; /* Space for bottom toolbar */
+            }
+
+            #canvas {
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            /* Bottom toolbar styling */
+            .bottom-toolbar .tool-icon {
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 20px;
+            }
+
+            /* Touch-friendly buttons */
+            .menu-btn, .icon-btn, .tool-icon {
+                min-width: 44px;
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+
+            /* Status bar */
+            .status-bar {
+                display: none; /* Hide on mobile to save space */
+            }
+
+            /* Modal adjustments */
+            .modal-content {
+                max-width: 95vw !important;
+                margin: 20px auto;
+            }
+
+            /* Sidebar sections in drawer */
+            .sidebar-section {
+                padding: 15px;
+            }
+
+            .sidebar-section h3 {
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .top-menu {
+                padding: 6px 8px;
+                gap: 4px;
+            }
+
+            .menu-left {
+                gap: 4px;
+            }
+
+            .menu-right {
+                gap: 3px;
+            }
+
+            .menu-btn {
+                padding: 5px 8px;
+                font-size: 10px;
+                min-height: 30px;
+            }
+
+            .icon-btn {
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+                min-height: 30px;
+                font-size: 14px;
+            }
+
+            .app-title {
+                font-size: 14px;
+                margin-right: 4px;
+            }
+
+            .tab-btn {
+                padding: 5px 10px;
+                font-size: 11px;
+            }
+
+            .zoom-controls-top {
+                gap: 3px;
+                margin-right: 3px;
+            }
+
+            .zoom-btn-top {
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+                min-height: 30px;
+                font-size: 12px;
+            }
+
+            #zoomLevel {
+                font-size: 11px;
+                min-width: 38px;
+            }
+
+            /* Even smaller toolbar icons on very small screens */
+            .bottom-toolbar .tool-icon {
                 width: 40px;
                 height: 40px;
+                min-width: 40px;
+                min-height: 40px;
                 font-size: 18px;
+            }
+
+            .bottom-toolbar {
+                padding: 6px 2px;
+            }
+
+            .bottom-toolbar .toolbar-section {
+                gap: 4px;
+                padding: 0 6px;
             }
         }
     </style>
@@ -1067,13 +1444,13 @@
         <!-- Top Menu -->
         <div class="top-menu">
             <div class="menu-left">
+                <button class="hamburger-menu" id="hamburgerMenu" onclick="toggleSidebarDrawer()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
                 <span class="app-title">🧵 Heegelmotiivid</span>
                 <button class="tab-btn active">Visual</button>
-                <button class="tab-btn">Text Pattern</button>
-                <button class="menu-btn" onclick="alert('New project functionality coming soon!')">
-                    New ▼
-                </button>
-                <button class="menu-btn">Templates</button>
             </div>
             <div class="menu-right">
                 <!-- Zoom Controls -->
@@ -1113,8 +1490,25 @@
                 <canvas id="canvas" width="600" height="600"></canvas>
             </div>
 
-            <!-- Right Sidebar -->
+            <!-- Right Sidebar (Desktop) -->
             <div class="right-sidebar" id="rightSidebar">
+                <!-- Sidebar content will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Bottom Toolbar (Mobile) -->
+        <div class="bottom-toolbar" id="bottomToolbar">
+            <!-- Tools will be populated by JavaScript -->
+        </div>
+
+        <!-- Sidebar Drawer (Mobile) -->
+        <div class="drawer-overlay" id="drawerOverlay" onclick="toggleSidebarDrawer()"></div>
+        <div class="sidebar-drawer" id="sidebarDrawer">
+            <div class="drawer-header">
+                <h2>⚙️ Seaded</h2>
+                <button class="drawer-close" onclick="toggleSidebarDrawer()">&times;</button>
+            </div>
+            <div id="drawerContent">
                 <!-- Sidebar content will be populated by JavaScript -->
             </div>
         </div>
@@ -1164,13 +1558,95 @@
 
     <!-- Custom Stitch Modal -->
     <div id="customStitchModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h2>🎨 Loo custom heegelpiste</h2>
+                <h2 id="customStitchModalTitle">🎨 Loo custom heegelpiste</h2>
                 <button class="close-btn" onclick="closeCustomStitchModal()">&times;</button>
             </div>
-            <!-- Modal content will be added -->
-            <p style="text-align: center; color: #666;">Custom stitch creator coming in next update...</p>
+            <div style="padding: 20px;">
+                <!-- Nimi -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">Nimi *</label>
+                    <input type="text" id="customStitchName" placeholder="Näiteks: Minu eriline piste" 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;"
+                           oninput="updateCustomStitchPreview()">
+                </div>
+
+                <!-- Sümbol -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">Sümbol *</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="customStitchSymbolDropdown" 
+                                style="width: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                                onchange="selectSymbolFromDropdown()">
+                            <option value="">Vali sümbol...</option>
+                            <option value="○">○ Ahelpistet</option>
+                            <option value="●">● Täitepiste</option>
+                            <option value="+">+ Ühekordne pööret</option>
+                            <option value="×">× Alternatiivne +</option>
+                            <option value="T">T Poolkordne</option>
+                            <option value="┴">┴ Topeltvarras</option>
+                            <option value="┬">┬ Kolmekordne</option>
+                            <option value="┼">┼ Neljakordne</option>
+                            <option value="∧">∧ Vähendus</option>
+                            <option value="◉">◉ Kobar</option>
+                            <option value="◐">◐ Puff</option>
+                            <option value="⋏">⋏ Shell</option>
+                            <option value="◊">◊ Picot</option>
+                            <option value="★">★ Täht</option>
+                            <option value="◆">◆ Teemant</option>
+                            <option value="▲">▲ Kolmnurk</option>
+                            <option value="■">■ Ruut</option>
+                            <option value="●">● Täisring</option>
+                            <option value="◯">◯ Tühi ring</option>
+                        </select>
+                        <input type="text" id="customStitchSymbol" placeholder="Või sisesta oma sümbol" 
+                               maxlength="2"
+                               style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 20px; text-align: center; box-sizing: border-box;"
+                               oninput="updateCustomStitchPreview()">
+                    </div>
+                    <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                        Vali eeldefineeritud sümbol või sisesta oma (Unicode, emoji või märk)
+                    </div>
+                </div>
+
+                <!-- Kategooria -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">Kategooria</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="customStitchCategory" 
+                                style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <option value="custom">Custom</option>
+                            <option value="basic">Põhilised</option>
+                            <option value="decreases">Vähendused</option>
+                            <option value="clusters">Kobarid ja eripisted</option>
+                            <option value="post">Post pisted</option>
+                        </select>
+                        <input type="text" id="customStitchCategoryNew" placeholder="Või loo uus kategooria" 
+                               style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;"
+                               oninput="handleCustomCategoryInput()">
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div style="margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 2px dashed #ddd;">
+                    <div style="text-align: center; margin-bottom: 10px; font-weight: 500; color: #666;">Eelvaade</div>
+                    <div style="display: flex; justify-content: center; align-items: center; min-height: 100px;">
+                        <canvas id="customStitchPreview" width="80" height="80" style="border: 1px solid #ccc; border-radius: 4px; background: white;"></canvas>
+                    </div>
+                    <div id="customStitchPreviewText" style="text-align: center; margin-top: 10px; color: #666; font-size: 14px;"></div>
+                </div>
+
+                <!-- Nupud -->
+                <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <button id="customStitchDeleteBtn" class="menu-btn" onclick="deleteCustomStitchFromModal()" 
+                            style="background: #d32f2f; color: white; border: none; display: none;">Kustuta</button>
+                    <div style="display: flex; gap: 10px; margin-left: auto;">
+                        <button class="menu-btn" onclick="closeCustomStitchModal()">Tühista</button>
+                        <button class="menu-btn" onclick="saveCustomStitch()" style="background: #6B8CAE; color: white; border: none;">Salvesta</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

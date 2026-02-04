@@ -3,7 +3,7 @@
 // ============================================
 
 import { state, getCurrentLayer, getCurrentStitches } from './state.js';
-import { stitchSymbols } from './config.js';
+import { stitchSymbols, getStitchSymbol, stitchSvgFiles } from './config.js';
 
 let canvas, ctx;
 let canvasContainer = null;
@@ -11,6 +11,48 @@ let panOffset = { x: 0, y: 0 };
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5.0;
 const ZOOM_STEP = 0.1;
+
+// SVG image cache
+const svgImageCache = new Map();
+
+// Export function to get SVG image from cache
+export function getSvgImageFromCache(filename) {
+    return svgImageCache.get(filename) || null;
+}
+
+// Load SVG file as Image
+function loadSvgImage(filename) {
+    return new Promise((resolve, reject) => {
+        if (svgImageCache.has(filename)) {
+            resolve(svgImageCache.get(filename));
+            return;
+        }
+        
+        const img = new Image();
+        img.onload = () => {
+            svgImageCache.set(filename, img);
+            resolve(img);
+        };
+        img.onerror = () => {
+            console.error('Error loading SVG:', filename);
+            reject(new Error(`Failed to load SVG: ${filename}`));
+        };
+        img.src = `src/assets/symbols/${filename}`;
+    });
+}
+
+// Preload all SVG files
+export async function preloadSvgSymbols() {
+    const svgFiles = Object.values(stitchSvgFiles);
+    const uniqueFiles = [...new Set(svgFiles)];
+    
+    try {
+        await Promise.all(uniqueFiles.map(file => loadSvgImage(file)));
+        console.log('All SVG symbols preloaded');
+    } catch (error) {
+        console.error('Error preloading SVG symbols:', error);
+    }
+}
 
 export function initCanvas(canvasElement) {
     try {
@@ -22,11 +64,18 @@ export function initCanvas(canvasElement) {
             throw new Error('Canvas või context ei leitud');
         }
         
-        // Set canvas size from state (default to 600 if not set)
-        const size = state.canvasSize || 600;
+        // Set canvas to large size for infinite/scrollable canvas
+        // Use a large fixed size (3000x3000) for endless drawing
+        const size = 3000;
         canvas.width = size;
         canvas.height = size;
         state.canvasSize = size;
+        
+        // Center the view on canvas center initially
+        if (canvasContainer) {
+            canvasContainer.scrollLeft = (canvas.width - canvasContainer.clientWidth) / 2;
+            canvasContainer.scrollTop = (canvas.height - canvasContainer.clientHeight) / 2;
+        }
         
         // Initialize zoom to 100%
         state.zoomLevel = 1.0;
@@ -75,26 +124,44 @@ export function drawGrid() {
     ctx.lineWidth = 1;
     
     if (state.currentShape === 'circle' || state.currentShape === 'hexagon' || state.currentShape === 'octagon') {
-        for (let r = 30; r < size / 2; r += 40) {
+        // Draw concentric circles that extend across the entire canvas
+        const spacing = 40;
+        for (let r = spacing; r < size; r += spacing) {
             ctx.beginPath();
             ctx.arc(center, center, r, 0, Math.PI * 2);
             ctx.stroke();
         }
         
+        // Draw radial lines that extend across the entire canvas
         const divisions = state.currentShape === 'hexagon' ? 6 : state.currentShape === 'octagon' ? 8 : 12;
         for (let i = 0; i < divisions; i++) {
             const angle = (Math.PI * 2 * i) / divisions;
             ctx.beginPath();
             ctx.moveTo(center, center);
             ctx.lineTo(
-                center + Math.cos(angle) * (size / 2),
-                center + Math.sin(angle) * (size / 2)
+                center + Math.cos(angle) * size,
+                center + Math.sin(angle) * size
             );
             ctx.stroke();
         }
     } else if (state.currentShape === 'square') {
+        // Draw grid lines across the entire canvas
         const spacing = 30;
-        for (let i = spacing; i < size; i += spacing) {
+        for (let i = 0; i <= size; i += spacing) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, size);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(size, i);
+            ctx.stroke();
+        }
+    } else {
+        // For freeform, draw a simple grid across entire canvas
+        const spacing = 30;
+        for (let i = 0; i <= size; i += spacing) {
             ctx.beginPath();
             ctx.moveTo(i, 0);
             ctx.lineTo(i, size);
@@ -111,7 +178,8 @@ export function drawGrid() {
 export function drawShapeGuide() {
     const size = canvas.width;
     const center = size / 2;
-    const radius = size / 2 - 60;
+    // Use a reasonable radius for the guide (not too large)
+    const radius = Math.min(size / 2 - 60, 500);
     
     ctx.strokeStyle = '#6B8CAE';
     ctx.lineWidth = 2;
@@ -144,6 +212,10 @@ export function drawShapeGuide() {
             
         case 'octagon':
             drawPolygon(center, center, radius, 8);
+            break;
+            
+        case 'freeform':
+            // No guide for freeform
             break;
     }
     
@@ -193,197 +265,258 @@ export function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22,
         ctx.fillStyle = '#28a745';
     }
     
-    // Draw specific symbols using Canvas API to match chart exactly
+    // Check if we have an SVG file for this stitch and it's already loaded
+    const svgFile = stitchSvgFiles[stitch];
+    
+    if (svgFile && svgImageCache.has(svgFile)) {
+        // Use SVG file directly from cache
+        const img = svgImageCache.get(svgFile);
+        if (img && img.complete) {
+            // Calculate dimensions to fit the size
+            // SVG viewBox dimensions from files (approximate)
+            const svgViewBox = {
+                'Frame 1.svg': { width: 68, height: 62 },
+                'Frame 2.svg': { width: 26, height: 11 },
+                'Frame 3.svg': { width: 26, height: 11 },
+                'Frame 4.svg': { width: 33, height: 112 },
+                'Frame 5.svg': { width: 44, height: 80 },
+                'Frame 6.svg': { width: 32, height: 109 },
+                'Frame 7.svg': { width: 33, height: 138 },
+                'Frame 8.svg': { width: 64, height: 46 },
+                'Frame 9.svg': { width: 32, height: 109 },
+                'Frame 10.svg': { width: 64, height: 85 },
+                'Frame 11.svg': { width: 36, height: 70 },
+                'Frame 12.svg': { width: 170, height: 79 },
+                'Frame 13.svg': { width: 52, height: 47 },
+                'Frame 14.svg': { width: 33, height: 84 },
+                'Frame 15.svg': { width: 33, height: 66 },
+                'Frame 16.svg': { width: 30, height: 42 },
+                'Frame 17.svg': { width: 40, height: 20 },
+                'Frame 18.svg': { width: 16, height: 16 },
+                'Frame 19.svg': { width: 45, height: 82 },
+                'Frame 20.svg': { width: 35, height: 35 }
+            };
+            
+            const viewBox = svgViewBox[svgFile] || { width: 50, height: 50 };
+            const aspectRatio = viewBox.width / viewBox.height;
+            
+            // Scale to fit the desired size (use height as reference)
+            const drawHeight = size * 1.2;
+            const drawWidth = drawHeight * aspectRatio;
+            
+            // Apply color filter if needed (for non-black colors)
+            if (color !== '#000000' && color !== '#2C2E35') {
+                // Create a temporary canvas to apply color
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = viewBox.width;
+                tempCanvas.height = viewBox.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+                
+                // Apply color overlay
+                tempCtx.globalCompositeOperation = 'source-in';
+                tempCtx.fillStyle = color;
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                
+                ctx.drawImage(tempCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            } else {
+                ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            }
+            
+            ctx.restore();
+            return;
+        }
+    }
+    
+    // Fallback: Draw using Canvas API (for custom stitches or if SVG fails)
+    // Draw specific symbols using Canvas API to match SVG files exactly
+    // Based on Frame 1-20.svg from /Users/admin/Downloads/Untitled-2/
     switch(stitch) {
         case 'chain':
+            // Frame 17: Simple horizontal ellipse (for basic chain)
+            // Frame 1: 3 ellipses + filled circle at bottom (for complex chain representation)
+            // Using Frame 17 for standard chain symbol
+            ctx.lineWidth = 4 * scale;
             ctx.beginPath();
-            ctx.ellipse(0, 0, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 18 * scale, 8 * scale, 0, 0, Math.PI * 2);
             ctx.stroke();
             break;
             
         case 'slip':
+            // Frame 18: Filled circle
             ctx.beginPath();
-            ctx.arc(0, 0, 4 * scale, 0, Math.PI * 2);
+            ctx.arc(0, 0, 8 * scale, 0, Math.PI * 2);
             ctx.fill();
             break;
             
         case 'sc':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 16: X shape (diagonal cross)
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
-            ctx.moveTo(-6 * scale, 0);
-            ctx.lineTo(6 * scale, 0);
-            ctx.moveTo(0, -6 * scale);
-            ctx.lineTo(0, 6 * scale);
+            ctx.moveTo(-14 * scale, -14 * scale);
+            ctx.lineTo(14 * scale, 14 * scale);
+            ctx.moveTo(14 * scale, -14 * scale);
+            ctx.lineTo(-14 * scale, 14 * scale);
             ctx.stroke();
             break;
             
         case 'hdc':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 11: Vertical line with 2 curved lines (left and right)
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
+            // Horizontal line at top
+            ctx.moveTo(-16.5 * scale, -8 * scale);
+            ctx.lineTo(16.5 * scale, -8 * scale);
+            // Vertical line
             ctx.moveTo(0, -8 * scale);
             ctx.lineTo(0, 8 * scale);
-            ctx.moveTo(-6 * scale, 0);
-            ctx.lineTo(6 * scale, 0);
+            // Left curved line
+            ctx.moveTo(-14.8 * scale, -8 * scale);
+            ctx.quadraticCurveTo(-2.8 * scale, 17.5 * scale, 14.5 * scale, 8 * scale);
+            // Right curved line
+            ctx.moveTo(20.95 * scale, -8 * scale);
+            ctx.quadraticCurveTo(38.67 * scale, 17.4 * scale, 21.63 * scale, 8 * scale);
             ctx.stroke();
             break;
             
         case 'dc':
-            // Vertical line with single diagonal line crossing the vertical stem
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 14: Vertical line with single diagonal
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.moveTo(0, -8 * scale);
             ctx.lineTo(0, 8 * scale);
-            // Diagonal line (from top-left to bottom-right)
-            ctx.moveTo(-5 * scale, -3 * scale);
-            ctx.lineTo(5 * scale, 1 * scale);
+            // Diagonal line
+            ctx.moveTo(-5 * scale, -2 * scale);
+            ctx.lineTo(5 * scale, 2 * scale);
             ctx.stroke();
             break;
             
         case 'tr':
-            // Vertical line with two diagonal lines crossing the vertical stem
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 19: Vertical line with 3 diagonals
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.moveTo(0, -8 * scale);
             ctx.lineTo(0, 8 * scale);
-            // First diagonal line (higher)
+            // Three diagonal lines
             ctx.moveTo(-5 * scale, -5 * scale);
             ctx.lineTo(5 * scale, -1 * scale);
-            // Second diagonal line (lower)
             ctx.moveTo(-5 * scale, -1 * scale);
             ctx.lineTo(5 * scale, 3 * scale);
+            ctx.moveTo(-5 * scale, 3 * scale);
+            ctx.lineTo(5 * scale, 7 * scale);
             ctx.stroke();
             break;
             
         case 'dtr':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 7: Vertical line with 3 diagonals
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
+            // Horizontal line at top
+            ctx.moveTo(-16 * scale, -8 * scale);
+            ctx.lineTo(16 * scale, -8 * scale);
+            // Vertical line
             ctx.moveTo(0, -8 * scale);
             ctx.lineTo(0, 8 * scale);
-            ctx.moveTo(-6 * scale, -2 * scale);
-            ctx.lineTo(6 * scale, -2 * scale);
-            ctx.moveTo(-6 * scale, -4 * scale);
-            ctx.lineTo(6 * scale, -4 * scale);
-            ctx.moveTo(-6 * scale, -6 * scale);
-            ctx.lineTo(6 * scale, -6 * scale);
+            // Three diagonal lines
+            ctx.moveTo(-5.5 * scale, -1 * scale);
+            ctx.lineTo(5.5 * scale, 2 * scale);
+            ctx.moveTo(-5.5 * scale, 2 * scale);
+            ctx.lineTo(5.5 * scale, 5 * scale);
+            ctx.moveTo(-5.5 * scale, 5 * scale);
+            ctx.lineTo(5.5 * scale, 8 * scale);
             ctx.stroke();
             break;
             
         case 'sc2tog':
-            // Inverted V with two vertical lines converging at top
-            // Each vertical line has a short horizontal line crossing it
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 2: Curved inverted V
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
-            // Left vertical line
-            ctx.moveTo(-6 * scale, -6 * scale);
-            ctx.lineTo(-3 * scale, 6 * scale);
-            // Right vertical line
-            ctx.moveTo(6 * scale, -6 * scale);
-            ctx.lineTo(3 * scale, 6 * scale);
-            ctx.stroke();
-            // Horizontal lines crossing each vertical
-            ctx.beginPath();
-            ctx.moveTo(-7 * scale, 0);
-            ctx.lineTo(-5 * scale, 0);
-            ctx.moveTo(5 * scale, 0);
-            ctx.lineTo(7 * scale, 0);
+            // Curved path from bottom-left to bottom-right
+            const sc2togStartX = -12 * scale;
+            const sc2togEndX = 12 * scale;
+            const sc2togY = 4.4 * scale;
+            ctx.moveTo(sc2togStartX, sc2togY);
+            ctx.quadraticCurveTo(0, -4.4 * scale, sc2togEndX, sc2togY);
             ctx.stroke();
             break;
             
         case 'sc3tog':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 3: Curved inverted V (other direction) or Frame 13: Triangle
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
-            ctx.moveTo(-6 * scale, -6 * scale);
-            ctx.lineTo(0, 6 * scale);
-            ctx.lineTo(6 * scale, -6 * scale);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(-4 * scale, -2 * scale);
-            ctx.lineTo(4 * scale, -2 * scale);
-            ctx.moveTo(-4 * scale, 0);
-            ctx.lineTo(4 * scale, 0);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(-3 * scale, -7 * scale);
-            ctx.lineTo(3 * scale, -5 * scale);
-            ctx.moveTo(3 * scale, -7 * scale);
-            ctx.lineTo(-3 * scale, -5 * scale);
+            // Triangle shape
+            ctx.moveTo(0, -8 * scale);
+            ctx.lineTo(-12 * scale, 8 * scale);
+            ctx.lineTo(12 * scale, 8 * scale);
+            ctx.closePath();
             ctx.stroke();
             break;
             
         case 'dc2tog':
-            // Inverted V with two vertical lines converging at top
-            // Each vertical line has a short diagonal line crossing it
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 5: Inverted V with vertical line and 2 diagonals + curve
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
-            // Left vertical line
-            ctx.moveTo(-6 * scale, -6 * scale);
-            ctx.lineTo(-3 * scale, 6 * scale);
-            // Right vertical line
-            ctx.moveTo(6 * scale, -6 * scale);
-            ctx.lineTo(3 * scale, 6 * scale);
-            ctx.stroke();
-            // Diagonal lines crossing each vertical (left side)
-            ctx.beginPath();
-            ctx.moveTo(-7 * scale, -2 * scale);
-            ctx.lineTo(-5 * scale, 0);
-            // Diagonal lines crossing each vertical (right side)
-            ctx.moveTo(5 * scale, -2 * scale);
-            ctx.lineTo(7 * scale, 0);
+            // Main vertical line
+            ctx.moveTo(0, -8 * scale);
+            ctx.lineTo(0, 8 * scale);
+            // Left diagonal
+            ctx.moveTo(-10.5 * scale, -1 * scale);
+            ctx.lineTo(-6.5 * scale, 2 * scale);
+            // Right diagonal
+            ctx.moveTo(6.5 * scale, -1 * scale);
+            ctx.lineTo(10.5 * scale, 2 * scale);
+            // Curved bottom
+            ctx.moveTo(-21.5 * scale, 8 * scale);
+            ctx.quadraticCurveTo(0, 4 * scale, 21.5 * scale, 8 * scale);
             ctx.stroke();
             break;
             
         case 'dc3tog':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 4: Vertical line with 3 diagonals
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
-            ctx.moveTo(-6 * scale, -6 * scale);
-            ctx.lineTo(0, 6 * scale);
-            ctx.lineTo(6 * scale, -6 * scale);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(-4 * scale, -2 * scale);
-            ctx.lineTo(4 * scale, -2 * scale);
-            ctx.moveTo(-4 * scale, 0);
-            ctx.lineTo(4 * scale, 0);
+            // Horizontal line at top
+            ctx.moveTo(-16 * scale, -8 * scale);
+            ctx.lineTo(16 * scale, -8 * scale);
+            // Vertical line
+            ctx.moveTo(0, -8 * scale);
+            ctx.lineTo(0, 8 * scale);
+            // Three diagonal lines
+            ctx.moveTo(-5.5 * scale, 0.5 * scale);
+            ctx.lineTo(5.5 * scale, 3.5 * scale);
+            ctx.moveTo(-5.5 * scale, 3.5 * scale);
+            ctx.lineTo(5.5 * scale, 6.5 * scale);
+            ctx.moveTo(-5.5 * scale, 6.5 * scale);
+            ctx.lineTo(5.5 * scale, 9.5 * scale);
             ctx.stroke();
             break;
             
         case 'cluster-3dc':
-            // Oval with three vertical lines inside
-            // Each vertical line has a short diagonal line crossing it
+            // Frame 20: Vertical line with 3 diagonals + horizontal
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
-            ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
+            // Horizontal line at top
+            ctx.moveTo(-17.5 * scale, -8 * scale);
+            ctx.lineTo(17.5 * scale, -8 * scale);
+            // Vertical line
+            ctx.moveTo(0, -8 * scale);
+            ctx.lineTo(0, 8 * scale);
+            // Three diagonal lines
+            ctx.moveTo(-8.4 * scale, 0.5 * scale);
+            ctx.lineTo(-5.2 * scale, 3.5 * scale);
+            ctx.moveTo(0, 0.5 * scale);
+            ctx.lineTo(3.2 * scale, 3.5 * scale);
+            ctx.moveTo(8.4 * scale, 0.5 * scale);
+            ctx.lineTo(11.6 * scale, 3.5 * scale);
             ctx.stroke();
-            ctx.lineWidth = 2 * scale;
-            // Three vertical lines
-            ctx.beginPath();
-            ctx.moveTo(-2 * scale, -6 * scale);
-            ctx.lineTo(-2 * scale, 6 * scale);
-            ctx.moveTo(0, -6 * scale);
-            ctx.lineTo(0, 6 * scale);
-            ctx.moveTo(2 * scale, -6 * scale);
-            ctx.lineTo(2 * scale, 6 * scale);
-            ctx.stroke();
-            // Diagonal lines on each vertical (from top-left to bottom-right)
-            ctx.lineWidth = 1.5 * scale;
-            ctx.beginPath();
-            // Left vertical diagonal
-            ctx.moveTo(-3 * scale, 0);
-            ctx.lineTo(-1 * scale, 2 * scale);
-            // Center vertical diagonal
-            ctx.moveTo(-1 * scale, 0);
-            ctx.lineTo(1 * scale, 2 * scale);
-            // Right vertical diagonal
-            ctx.moveTo(1 * scale, 0);
-            ctx.lineTo(3 * scale, 2 * scale);
-            ctx.stroke();
-            ctx.lineWidth = 2.5 * scale; // Reset
             break;
             
         case 'cluster-3hdc':
+            // Similar to cluster-3dc but simpler
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.ellipse(0, 0, 5 * scale, 8 * scale, 0, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.lineWidth = 2 * scale;
             ctx.beginPath();
             ctx.moveTo(0, -6 * scale);
             ctx.lineTo(0, 6 * scale);
@@ -391,6 +524,8 @@ export function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22,
             break;
             
         case 'popcorn-5dc':
+            // Similar to cluster but with 5 vertical lines
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
             ctx.stroke();
@@ -401,28 +536,28 @@ export function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22,
                 ctx.lineTo(i * 1.5 * scale, 6 * scale);
             }
             ctx.stroke();
+            ctx.lineWidth = 3.12 * scale; // Reset
             break;
             
         case 'shell-5dc':
-            // Fan shape: five individual T shapes with diagonal lines
-            // All five T shapes originate from a single point at the bottom
-            ctx.lineWidth = 2.5 * scale;
-            const fanRadius = 8 * scale;
-            const fanStartAngle = -Math.PI / 2.5;
-            const fanEndAngle = Math.PI / 2.5;
-            const bottomY = 4 * scale;
-            const bottomX = 0;
+            // Frame 8, 10, 12: Fan shape with 5 DC stitches
+            ctx.lineWidth = 3.12 * scale;
+            const centerX = 0;
+            const centerY = 4 * scale;
+            const shellRadius = 8 * scale;
+            const shellStartAngle = -Math.PI / 2.5;
+            const shellEndAngle = Math.PI / 2.5;
             
             for (let i = 0; i < 5; i++) {
-                const angle = fanStartAngle + (fanEndAngle - fanStartAngle) * (i / 4);
-                const endX = bottomX + Math.cos(angle) * fanRadius;
-                const endY = bottomY - Math.sin(angle) * fanRadius;
+                const angle = shellStartAngle + (shellEndAngle - shellStartAngle) * (i / 4);
+                const endX = centerX + Math.cos(angle) * shellRadius;
+                const endY = centerY - Math.sin(angle) * shellRadius;
                 
                 ctx.beginPath();
-                // Vertical line from bottom point to top
-                ctx.moveTo(bottomX, bottomY);
+                // Vertical line from center to top
+                ctx.moveTo(centerX, centerY);
                 ctx.lineTo(endX, endY - 4 * scale);
-                // Diagonal line crossing the vertical (from top-left to bottom-right)
+                // Diagonal line crossing
                 ctx.moveTo(endX - 2.5 * scale, endY - 5 * scale);
                 ctx.lineTo(endX + 2.5 * scale, endY - 3 * scale);
                 ctx.stroke();
@@ -430,6 +565,8 @@ export function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22,
             break;
             
         case 'picot-ch3':
+            // Circle with loop
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.arc(0, 0, 3 * scale, 0, Math.PI * 2);
             ctx.fill();
@@ -440,36 +577,52 @@ export function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22,
             break;
             
         case 'fpdc':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 6: Vertical line + horizontal + curve to right
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
+            // Horizontal line at top
+            ctx.moveTo(-16 * scale, -8 * scale);
+            ctx.lineTo(16 * scale, -8 * scale);
+            // Vertical line
             ctx.moveTo(0, -8 * scale);
             ctx.lineTo(0, 8 * scale);
-            ctx.moveTo(-6 * scale, -4 * scale);
-            ctx.lineTo(6 * scale, -4 * scale);
-            ctx.arc(4 * scale, 6 * scale, 2 * scale, Math.PI, 0, false);
+            // Diagonal line
+            ctx.moveTo(-5.5 * scale, 0.5 * scale);
+            ctx.lineTo(5.5 * scale, 3.5 * scale);
+            // Curve to right
+            ctx.arc(15.5 * scale, 8 * scale, 7.5 * scale, Math.PI, 0, false);
             ctx.stroke();
             break;
             
         case 'bpdc':
-            ctx.lineWidth = 2.5 * scale;
+            // Frame 9: Vertical line + horizontal + curve to left
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
+            // Horizontal line at top
+            ctx.moveTo(-16 * scale, -8 * scale);
+            ctx.lineTo(16 * scale, -8 * scale);
+            // Vertical line
             ctx.moveTo(0, -8 * scale);
             ctx.lineTo(0, 8 * scale);
-            ctx.moveTo(-6 * scale, -4 * scale);
-            ctx.lineTo(6 * scale, -4 * scale);
-            ctx.arc(-4 * scale, 6 * scale, 2 * scale, 0, Math.PI, false);
+            // Diagonal line
+            ctx.moveTo(-5.5 * scale, 0.5 * scale);
+            ctx.lineTo(5.5 * scale, 3.5 * scale);
+            // Curve to left
+            ctx.arc(-15.5 * scale, 8 * scale, 7.5 * scale, 0, Math.PI, false);
             ctx.stroke();
             break;
             
         case 'blo':
-            ctx.lineWidth = 2.5 * scale;
+            // Left parenthesis (back loop only)
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.arc(-3 * scale, 0, 3 * scale, -Math.PI / 2, Math.PI / 2, false);
             ctx.stroke();
             break;
             
         case 'flo':
-            ctx.lineWidth = 2.5 * scale;
+            // Right parenthesis (front loop only)
+            ctx.lineWidth = 3.12 * scale;
             ctx.beginPath();
             ctx.arc(3 * scale, 0, 3 * scale, Math.PI / 2, -Math.PI / 2, false);
             ctx.stroke();
@@ -479,8 +632,9 @@ export function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22,
             ctx.font = `bold ${size}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const symbol = stitchSymbols[stitch];
-            if (symbol) {
+            // Use getStitchSymbol to support both standard and custom stitches
+            const symbol = getStitchSymbol(stitch);
+            if (symbol && symbol !== '?') {
                 ctx.fillText(symbol, 0, 0);
             } else {
                 ctx.fillText('?', 0, 0);

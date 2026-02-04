@@ -2,8 +2,8 @@
 // UI COMPONENTS - UI komponendid ja event handlerid
 // ============================================
 
-import { state, setCurrentStitch, setCurrentColor, setCurrentShape, setCurrentToolMode, setSymmetryMode, setCurrentLayerIndex, addLayer } from './state.js';
-import { stitchNames, stitchSymbols, stitchCategories } from './config.js';
+import { state, setCurrentStitch, setCurrentColor, setCurrentShape, setCurrentToolMode, setSymmetryMode, setCurrentLayerIndex, addLayer, addCustomStitch, updateCustomStitch, deleteCustomStitch, getCustomStitch, getAllCustomStitches, mergeCustomStitches, loadCustomStitchesFromLocalStorage } from './state.js';
+import { stitchNames, stitchSymbols, stitchCategories, getStitchName, getStitchSymbol, getAllStitchSymbols, getAllStitchNames, stitchSvgFiles } from './config.js';
 import { setToolMode } from './tools.js';
 import { redrawStitches, zoom, setupWheelZoom } from './canvas.js';
 import { analyzePattern, toggleAutoContinue } from './pattern.js';
@@ -35,11 +35,23 @@ window.openCrochetChartModal = openCrochetChartModal;
 window.closeCrochetChartModal = closeCrochetChartModal;
 window.selectStitchFromChart = selectStitchFromChart;
 window.toggleDarkMode = toggleDarkMode;
+window.showCustomStitchModal = showCustomStitchModal;
+window.closeCustomStitchModal = closeCustomStitchModal;
+window.saveCustomStitch = saveCustomStitch;
+window.deleteCustomStitchFromModal = deleteCustomStitchFromModal;
+window.selectSymbolFromDropdown = selectSymbolFromDropdown;
+window.updateCustomStitchPreview = updateCustomStitchPreview;
+window.handleCustomCategoryInput = handleCustomCategoryInput;
+window.toggleSidebarDrawer = toggleSidebarDrawer;
 
 export function initUI() {
     try {
+        // Load custom stitches from localStorage first
+        loadCustomStitchesFromLocalStorage();
+        
         createLeftToolbar();
         createRightSidebar();
+        createBottomToolbar(); // Create mobile bottom toolbar
         initHistory(); // Initialize history system
         setupWheelZoom(); // Setup mouse wheel zoom
         updateColorPickerForDarkMode(); // Update color picker for dark mode
@@ -120,6 +132,161 @@ export function createLeftToolbar() {
     toolbar.appendChild(section3);
 }
 
+export function createBottomToolbar() {
+    const bottomToolbar = document.getElementById('bottomToolbar');
+    if (!bottomToolbar) return;
+    
+    // Clear existing content
+    bottomToolbar.innerHTML = '';
+    
+    const tools = [
+        { id: 'draw', icon: '✏️', title: 'Joonista' },
+        { id: 'erase', icon: '🧹', title: 'Kustuta' },
+        { id: 'line', icon: '📏', title: 'Joon' },
+        { id: 'move', icon: '✋', title: 'Liiguta' },
+        { id: 'select', icon: '⬚', title: 'Vali ala' },
+        { id: 'note', icon: '📝', title: 'Märkus' },
+    ];
+    
+    const section = document.createElement('div');
+    section.className = 'toolbar-section';
+    
+    tools.forEach((tool, index) => {
+        const btn = document.createElement('div');
+        btn.className = 'tool-icon' + (index === 0 ? ' active' : '');
+        btn.innerHTML = tool.icon;
+        btn.title = tool.title;
+        btn.onclick = () => {
+            setToolMode(tool.id);
+            // Update active state in bottom toolbar
+            section.querySelectorAll('.tool-icon').forEach(icon => icon.classList.remove('active'));
+            btn.classList.add('active');
+            // Also update left toolbar if it exists
+            const leftToolbar = document.getElementById('leftToolbar');
+            if (leftToolbar) {
+                leftToolbar.querySelectorAll('.tool-icon').forEach(icon => {
+                    icon.classList.remove('active');
+                    if (icon.dataset.tool === tool.id) {
+                        icon.classList.add('active');
+                    }
+                });
+            }
+        };
+        btn.dataset.tool = tool.id;
+        section.appendChild(btn);
+    });
+    
+    // Add undo/redo
+    const undoBtn = document.createElement('div');
+    undoBtn.className = 'tool-icon';
+    undoBtn.innerHTML = '↶';
+    undoBtn.title = 'Tagasi';
+    undoBtn.onclick = () => {
+        if (undo()) {
+            redrawStitches();
+            updateRoundsList();
+        }
+    };
+    section.appendChild(undoBtn);
+    
+    const redoBtn = document.createElement('div');
+    redoBtn.className = 'tool-icon';
+    redoBtn.innerHTML = '↷';
+    redoBtn.title = 'Uuesti';
+    redoBtn.onclick = () => {
+        if (redo()) {
+            redrawStitches();
+            updateRoundsList();
+        }
+    };
+    section.appendChild(redoBtn);
+    
+    bottomToolbar.appendChild(section);
+}
+
+// Toggle sidebar drawer for mobile
+export function toggleSidebarDrawer() {
+    const drawer = document.getElementById('sidebarDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    const hamburger = document.getElementById('hamburgerMenu');
+    
+    if (!drawer || !overlay || !hamburger) return;
+    
+    const isOpen = drawer.classList.contains('open');
+    
+    if (isOpen) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('active');
+        hamburger.classList.remove('active');
+        document.body.style.overflow = '';
+    } else {
+        drawer.classList.add('open');
+        overlay.classList.add('active');
+        hamburger.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Populate drawer content if empty
+        const drawerContent = document.getElementById('drawerContent');
+        if (drawerContent && drawerContent.children.length === 0) {
+            populateDrawerContent();
+        }
+    }
+}
+
+// Populate drawer content from right sidebar
+function populateDrawerContent() {
+    const drawerContent = document.getElementById('drawerContent');
+    const rightSidebar = document.getElementById('rightSidebar');
+    
+    if (!drawerContent || !rightSidebar) return;
+    
+    // Clone sidebar content
+    drawerContent.innerHTML = rightSidebar.innerHTML;
+    
+    // Re-attach event listeners for drawer content
+    attachDrawerEventListeners();
+}
+
+// Update drawer content when sidebar is updated
+export function updateDrawerContent() {
+    const drawerContent = document.getElementById('drawerContent');
+    const rightSidebar = document.getElementById('rightSidebar');
+    
+    if (!drawerContent || !rightSidebar) return;
+    
+    // Only update if drawer is open
+    const drawer = document.getElementById('sidebarDrawer');
+    if (drawer && drawer.classList.contains('open')) {
+        drawerContent.innerHTML = rightSidebar.innerHTML;
+        attachDrawerEventListeners();
+    }
+}
+
+// Attach event listeners to drawer content
+function attachDrawerEventListeners() {
+    const drawerContent = document.getElementById('drawerContent');
+    if (!drawerContent) return;
+    
+    // Re-attach all event listeners that might be in the sidebar
+    // This is a simplified version - you may need to adjust based on your actual sidebar content
+    const buttons = drawerContent.querySelectorAll('button, .menu-btn, .icon-btn');
+    buttons.forEach(btn => {
+        const onclick = btn.getAttribute('onclick');
+        if (onclick) {
+            btn.onclick = () => {
+                eval(onclick);
+                // Close drawer after some actions
+                if (onclick.includes('update') || onclick.includes('toggle') || onclick.includes('add')) {
+                    // Keep drawer open for these actions
+                } else {
+                    // Close drawer for other actions
+                    setTimeout(() => toggleSidebarDrawer(), 300);
+                }
+            };
+        }
+    });
+}
+
 export function createRightSidebar() {
     const sidebar = document.getElementById('rightSidebar');
     
@@ -167,7 +334,7 @@ export function createRightSidebar() {
         <h3>Properties</h3>
         <div class="property-row">
             <span class="property-label">Praegune pistet:</span>
-            <span class="property-value" id="propCurrentStitch">${stitchNames[state.currentStitch]}</span>
+            <span class="property-value" id="propCurrentStitch">${getStitchName(state.currentStitch)}</span>
         </div>
         <div class="property-row">
             <span class="property-label">Suurus:</span>
@@ -294,7 +461,7 @@ export function createRightSidebar() {
     updateRoundsList();
 }
 
-function drawStitchToCanvas(canvas, stitch, color = '#333', size = 20) {
+async function drawStitchToCanvas(canvas, stitch, color = '#333', size = 20) {
     const ctx = canvas.getContext('2d');
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
@@ -303,49 +470,110 @@ function drawStitchToCanvas(canvas, stitch, color = '#333', size = 20) {
     ctx.save();
     ctx.translate(centerX, centerY);
     
+    // Check if we have an SVG file for this stitch
+    const svgFile = stitchSvgFiles[stitch];
+    
+    // Import SVG cache from canvas.js
+    // We need to access the SVG image cache
+    if (svgFile) {
+        try {
+            // Dynamically import to get access to SVG cache
+            const { getSvgImageFromCache } = await import('./canvas.js');
+            const img = getSvgImageFromCache(svgFile);
+            
+            if (img && img.complete) {
+                // SVG viewBox dimensions from files
+                const svgViewBox = {
+                    'Frame 1.svg': { width: 68, height: 62 },
+                    'Frame 2.svg': { width: 26, height: 11 },
+                    'Frame 3.svg': { width: 26, height: 11 },
+                    'Frame 4.svg': { width: 33, height: 112 },
+                    'Frame 5.svg': { width: 44, height: 80 },
+                    'Frame 6.svg': { width: 32, height: 109 },
+                    'Frame 7.svg': { width: 33, height: 138 },
+                    'Frame 8.svg': { width: 64, height: 46 },
+                    'Frame 9.svg': { width: 32, height: 109 },
+                    'Frame 10.svg': { width: 64, height: 85 },
+                    'Frame 11.svg': { width: 36, height: 70 },
+                    'Frame 12.svg': { width: 170, height: 79 },
+                    'Frame 13.svg': { width: 52, height: 47 },
+                    'Frame 14.svg': { width: 33, height: 84 },
+                    'Frame 15.svg': { width: 33, height: 66 },
+                    'Frame 16.svg': { width: 30, height: 42 },
+                    'Frame 17.svg': { width: 40, height: 20 },
+                    'Frame 18.svg': { width: 16, height: 16 },
+                    'Frame 19.svg': { width: 45, height: 82 },
+                    'Frame 20.svg': { width: 35, height: 35 }
+                };
+                
+                const viewBox = svgViewBox[svgFile] || { width: 50, height: 50 };
+                const aspectRatio = viewBox.width / viewBox.height;
+                
+                // Scale to fit the palette size
+                const drawHeight = size * 1.2;
+                const drawWidth = drawHeight * aspectRatio;
+                
+                // Apply color filter if needed
+                if (color !== '#000000' && color !== '#2C2E35' && color !== '#333' && color !== '#ffffff') {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = viewBox.width;
+                    tempCanvas.height = viewBox.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+                    
+                    tempCtx.globalCompositeOperation = 'source-in';
+                    tempCtx.fillStyle = color;
+                    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    
+                    ctx.drawImage(tempCanvas, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                } else {
+                    ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                }
+                
+                ctx.restore();
+                return;
+            }
+        } catch (error) {
+            console.warn('Failed to load SVG for palette:', stitch, error);
+            // Fall through to default rendering
+        }
+    }
+    
+    // Fallback: Draw using Canvas API or text symbol
     ctx.lineWidth = 2;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     
     const scale = size / 22;
     
-    // Simplified version - just draw basic symbol
-    switch(stitch) {
-        case 'chain':
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            break;
-        case 'slip':
-            ctx.beginPath();
-            ctx.arc(0, 0, 4 * scale, 0, Math.PI * 2);
-            ctx.fill();
-            break;
-        case 'sc':
-            ctx.lineWidth = 2.5 * scale;
-            ctx.beginPath();
-            ctx.moveTo(-6 * scale, 0);
-            ctx.lineTo(6 * scale, 0);
-            ctx.moveTo(0, -6 * scale);
-            ctx.lineTo(0, 6 * scale);
-            ctx.stroke();
-            break;
-        default:
-            ctx.font = `bold ${size}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const symbol = stitchSymbols[stitch];
-            if (symbol) {
-                ctx.fillText(symbol, 0, 0);
-            } else {
-                ctx.fillText('?', 0, 0);
-            }
+    // For custom stitches, use text symbol
+    if (stitch && stitch.startsWith('custom-')) {
+        ctx.font = `bold ${size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const symbol = getStitchSymbol(stitch);
+        if (symbol && symbol !== '?') {
+            ctx.fillText(symbol, 0, 0);
+        } else {
+            ctx.fillText('?', 0, 0);
+        }
+    } else {
+        // Simplified version for standard stitches (fallback)
+        ctx.font = `bold ${size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const symbol = getStitchSymbol(stitch);
+        if (symbol && symbol !== '?') {
+            ctx.fillText(symbol, 0, 0);
+        } else {
+            ctx.fillText('?', 0, 0);
+        }
     }
     
     ctx.restore();
 }
 
-export function updateStitchPalette() {
+export async function updateStitchPalette() {
     const palette = document.getElementById('stitchPalette');
     if (!palette) return;
     
@@ -354,7 +582,12 @@ export function updateStitchPalette() {
     const isDark = document.body.classList.contains('dark-mode');
     const symbolColor = isDark ? '#e0e0e0' : '#333';
     
-    Object.keys(stitchSymbols).forEach(stitchId => {
+    // Get all stitch symbols (including custom)
+    const allStitchSymbols = getAllStitchSymbols();
+    const allStitchNames = getAllStitchNames();
+    
+    // Standard stitches - use for...of to properly await async operations
+    for (const stitchId of Object.keys(stitchSymbols)) {
         const item = document.createElement('div');
         const isActive = stitchId === state.currentStitch;
         item.className = 'stitch-palette-item' + (isActive ? ' active' : '');
@@ -365,7 +598,9 @@ export function updateStitchPalette() {
         symbolCanvas.width = 40;
         symbolCanvas.height = 40;
         const color = isActive ? '#ffffff' : symbolColor;
-        drawStitchToCanvas(symbolCanvas, stitchId, color, 18);
+        
+        // Draw stitch symbol (will use SVG if available)
+        await drawStitchToCanvas(symbolCanvas, stitchId, color, 18);
         
         item.appendChild(symbolCanvas);
         item.onclick = () => {
@@ -374,7 +609,86 @@ export function updateStitchPalette() {
             updateProperties();
         };
         palette.appendChild(item);
-    });
+    }
+    
+    // Custom stitches section
+    const customStitches = getAllCustomStitches();
+    if (customStitches.length > 0) {
+        // Add separator
+        const separator = document.createElement('div');
+        separator.style.width = '100%';
+        separator.style.height = '1px';
+        separator.style.backgroundColor = '#ddd';
+        separator.style.margin = '10px 0';
+        palette.appendChild(separator);
+        
+        // Add "Custom" label
+        const customLabel = document.createElement('div');
+        customLabel.style.padding = '5px 0';
+        customLabel.style.fontSize = '12px';
+        customLabel.style.fontWeight = '600';
+        customLabel.style.color = '#666';
+        customLabel.textContent = 'Custom';
+        palette.appendChild(customLabel);
+        
+        // Add custom stitches - use for...of to properly await async operations
+        for (const customStitch of customStitches) {
+            const item = document.createElement('div');
+            const isActive = customStitch.id === state.currentStitch;
+            item.className = 'stitch-palette-item' + (isActive ? ' active' : '');
+            item.title = customStitch.name;
+            
+            // Create a small canvas for the symbol
+            const symbolCanvas = document.createElement('canvas');
+            symbolCanvas.width = 40;
+            symbolCanvas.height = 40;
+            const color = isActive ? '#ffffff' : symbolColor;
+            
+            // Draw custom stitch symbol using the same function
+            await drawStitchToCanvas(symbolCanvas, customStitch.id, color, 18);
+            
+            item.appendChild(symbolCanvas);
+            item.onclick = () => {
+                setCurrentStitch(customStitch.id);
+                updateStitchPalette();
+                updateProperties();
+            };
+            
+            // Add right-click context menu for editing/deleting
+            item.oncontextmenu = (e) => {
+                e.preventDefault();
+                if (confirm(`Kas soovid muuta või kustutada "${customStitch.name}"?`)) {
+                    showCustomStitchModal(customStitch.id);
+                }
+            };
+            
+            palette.appendChild(item);
+        }
+    }
+    
+    // Add "+ Lisa custom piste" button
+    const addButton = document.createElement('div');
+    addButton.style.marginTop = '10px';
+    addButton.style.padding = '8px';
+    addButton.style.textAlign = 'center';
+    addButton.style.cursor = 'pointer';
+    addButton.style.border = '1px dashed #6B8CAE';
+    addButton.style.borderRadius = '4px';
+    addButton.style.color = '#6B8CAE';
+    addButton.style.fontSize = '12px';
+    addButton.style.fontWeight = '500';
+    addButton.textContent = '+ Lisa custom piste';
+    addButton.onclick = () => showCustomStitchModal();
+    addButton.onmouseover = () => {
+        addButton.style.backgroundColor = '#f0f4f8';
+    };
+    addButton.onmouseout = () => {
+        addButton.style.backgroundColor = 'transparent';
+    };
+    palette.appendChild(addButton);
+    
+    // Also update drawer if open
+    updateDrawerContent();
 }
 
 export function updateAlignmentButtons() {
@@ -384,6 +698,8 @@ export function updateAlignmentButtons() {
 }
 
 export function updateRoundsList() {
+    // Also update drawer if open
+    updateDrawerContent();
     const list = document.getElementById('roundsList');
     if (!list) return;
     
@@ -420,7 +736,10 @@ export function updateRoundsList() {
 
 export function updateProperties() {
     const prop = document.getElementById('propCurrentStitch');
-    if (prop) prop.textContent = stitchNames[state.currentStitch];
+    if (prop) prop.textContent = getStitchName(state.currentStitch);
+    
+    // Also update drawer if open
+    updateDrawerContent();
 }
 
 export function updateAutoStatus() {
@@ -628,6 +947,7 @@ export function saveJSON() {
         size: canvas.width,
         layers: state.layers,
         currentLayerIndex: state.currentLayerIndex,
+        customStitches: state.customStitches,
         date: new Date().toISOString()
     };
     
@@ -698,9 +1018,17 @@ export function loadJSON() {
                     state.nextLayerId = Math.max(...state.layers.map(l => l.id)) + 1;
                 }
                 
+                // Load and merge custom stitches from project file
+                if (data.customStitches && Array.isArray(data.customStitches)) {
+                    mergeCustomStitches(data.customStitches);
+                }
+                
                 state.suggestions = [];
                 
                 document.getElementById('propShape').value = state.currentShape;
+                
+                // Refresh UI to show custom stitches
+                updateStitchPalette();
                 
                 analyzePattern();
                 updateRoundsList();
@@ -949,6 +1277,204 @@ export function updateColorPickerForDarkMode() {
         colorInput.value = '#ffffff';
     } else if (colorInput && !isDark && state.currentColor === '#000000') {
         colorInput.value = '#000000';
+    }
+}
+
+// ============================================
+// CUSTOM STITCH MODAL FUNCTIONS
+// ============================================
+
+let customStitchModalState = {
+    editingId: null
+};
+
+export function showCustomStitchModal(stitchId) {
+    const modal = document.getElementById('customStitchModal');
+    const title = document.getElementById('customStitchModalTitle');
+    const nameInput = document.getElementById('customStitchName');
+    const symbolInput = document.getElementById('customStitchSymbol');
+    const symbolDropdown = document.getElementById('customStitchSymbolDropdown');
+    const categorySelect = document.getElementById('customStitchCategory');
+    const categoryNewInput = document.getElementById('customStitchCategoryNew');
+    const deleteBtn = document.getElementById('customStitchDeleteBtn');
+    
+    if (!modal) return;
+    
+    // Reset form
+    customStitchModalState.editingId = null;
+    if (nameInput) nameInput.value = '';
+    if (symbolInput) symbolInput.value = '';
+    if (symbolDropdown) symbolDropdown.value = '';
+    if (categorySelect) categorySelect.value = 'custom';
+    if (categoryNewInput) {
+        categoryNewInput.value = '';
+        categoryNewInput.style.display = 'none';
+    }
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    
+    // If editing existing stitch
+    if (stitchId) {
+        const stitch = getCustomStitch(stitchId);
+        if (stitch) {
+            customStitchModalState.editingId = stitchId;
+            if (title) title.textContent = '✏️ Muuda custom heegelpiste';
+            if (nameInput) nameInput.value = stitch.name || '';
+            if (symbolInput) symbolInput.value = stitch.symbol || '';
+            if (categorySelect) {
+                if (stitch.category && ['basic', 'decreases', 'clusters', 'post'].includes(stitch.category)) {
+                    categorySelect.value = stitch.category;
+                } else {
+                    categorySelect.value = 'custom';
+                    if (categoryNewInput && stitch.category) {
+                        categoryNewInput.value = stitch.category;
+                        categoryNewInput.style.display = 'block';
+                    }
+                }
+            }
+            if (deleteBtn) deleteBtn.style.display = 'block';
+        }
+    } else {
+        if (title) title.textContent = '🎨 Loo custom heegelpiste';
+    }
+    
+    updateCustomStitchPreview();
+    modal.style.display = 'flex';
+}
+
+export function closeCustomStitchModal() {
+    const modal = document.getElementById('customStitchModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    customStitchModalState.editingId = null;
+}
+
+export function selectSymbolFromDropdown() {
+    const dropdown = document.getElementById('customStitchSymbolDropdown');
+    const symbolInput = document.getElementById('customStitchSymbol');
+    
+    if (dropdown && symbolInput && dropdown.value) {
+        symbolInput.value = dropdown.value;
+        updateCustomStitchPreview();
+    }
+}
+
+export function handleCustomCategoryInput() {
+    const categorySelect = document.getElementById('customStitchCategory');
+    const categoryNewInput = document.getElementById('customStitchCategoryNew');
+    
+    if (categoryNewInput && categoryNewInput.value.trim()) {
+        if (categorySelect) {
+            categorySelect.value = 'custom';
+            categorySelect.disabled = true;
+        }
+    } else {
+        if (categorySelect) {
+            categorySelect.disabled = false;
+        }
+    }
+}
+
+export function updateCustomStitchPreview() {
+    const nameInput = document.getElementById('customStitchName');
+    const symbolInput = document.getElementById('customStitchSymbol');
+    const previewCanvas = document.getElementById('customStitchPreview');
+    const previewText = document.getElementById('customStitchPreviewText');
+    
+    if (!previewCanvas) return;
+    
+    const name = nameInput ? nameInput.value.trim() : '';
+    const symbol = symbolInput ? symbolInput.value.trim() : '';
+    
+    const ctx = previewCanvas.getContext('2d');
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    
+    if (symbol) {
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#333';
+        ctx.fillText(symbol, previewCanvas.width / 2, previewCanvas.height / 2);
+    }
+    
+    if (previewText) {
+        previewText.textContent = name || symbol || 'Sisesta nimi ja sümbol';
+    }
+}
+
+export function saveCustomStitch() {
+    const nameInput = document.getElementById('customStitchName');
+    const symbolInput = document.getElementById('customStitchSymbol');
+    const categorySelect = document.getElementById('customStitchCategory');
+    const categoryNewInput = document.getElementById('customStitchCategoryNew');
+    
+    if (!nameInput || !symbolInput) return;
+    
+    const name = nameInput.value.trim();
+    const symbol = symbolInput.value.trim();
+    
+    // Validation
+    if (!name) {
+        alert('Palun sisesta piste nimi!');
+        nameInput.focus();
+        return;
+    }
+    
+    if (!symbol) {
+        alert('Palun sisesta või vali piste sümbol!');
+        symbolInput.focus();
+        return;
+    }
+    
+    // Determine category
+    let category = 'custom';
+    if (categoryNewInput && categoryNewInput.value.trim()) {
+        category = categoryNewInput.value.trim();
+    } else if (categorySelect && categorySelect.value) {
+        category = categorySelect.value;
+    }
+    
+    try {
+        const stitchData = {
+            name: name,
+            symbol: symbol,
+            category: category
+        };
+        
+        if (customStitchModalState.editingId) {
+            // Update existing
+            updateCustomStitch(customStitchModalState.editingId, stitchData);
+        } else {
+            // Add new
+            addCustomStitch(stitchData);
+        }
+        
+        // Refresh UI
+        updateStitchPalette();
+        updateProperties();
+        closeCustomStitchModal();
+    } catch (error) {
+        alert('Viga: ' + error.message);
+    }
+}
+
+export function deleteCustomStitchFromModal() {
+    if (!customStitchModalState.editingId) return;
+    
+    if (!confirm('Kas oled kindel, et soovid selle custom piste kustutada?\n\nSee toiming on pöördumatu!')) {
+        return;
+    }
+    
+    if (deleteCustomStitch(customStitchModalState.editingId)) {
+        // If deleted stitch was selected, switch to default
+        if (state.currentStitch === customStitchModalState.editingId) {
+            setCurrentStitch('chain');
+            updateProperties();
+        }
+        
+        // Refresh UI
+        updateStitchPalette();
+        closeCustomStitchModal();
     }
 }
 

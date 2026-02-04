@@ -2,7 +2,7 @@
 // MAIN - Peamine entry point, ühendab kõik moodulid
 // ============================================
 
-import { initCanvas, setupWheelZoom } from './canvas.js';
+import { initCanvas, setupWheelZoom, preloadSvgSymbols } from './canvas.js';
 import { initUI, initDarkMode, updateAlignmentButtons } from './ui.js';
 import { state } from './state.js';
 import { setToolMode, handleDrawMode, handleEraseMode, drawLine, findStitchesInSelection, isPointInSelection, handleMoveSingleStitch, handleMoveSelectedStitches, getSelectionCenter, saveStateAfterMove, hasChangesBeenMade, clearChangesFlag, markChangesMade, handleRotateViaHandle, handleResizeViaHandle, addNote, editNote, deleteNote, getNoteAtPoint } from './tools.js';
@@ -50,7 +50,9 @@ initDarkMode();
 
 // Initialize UI and Canvas when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Preload SVG symbols first
+        await preloadSvgSymbols();
         initUI();
         const canvas = document.getElementById('canvas');
         if (canvas) {
@@ -59,12 +61,16 @@ if (document.readyState === 'loading') {
         setupEventListeners();
     });
 } else {
-    initUI();
-    const canvas = document.getElementById('canvas');
-    if (canvas) {
-        initCanvas(canvas);
-    }
-    setupEventListeners();
+    (async () => {
+        // Preload SVG symbols first
+        await preloadSvgSymbols();
+        initUI();
+        const canvas = document.getElementById('canvas');
+        if (canvas) {
+            initCanvas(canvas);
+        }
+        setupEventListeners();
+    })();
 }
 
 function setupEventListeners() {
@@ -590,6 +596,17 @@ window.deleteCurrentNote = async function() {
             closeEditNoteModal();
         }
     }
+};
+
+// Export state to window for testing
+window.state = state;
+window.getCurrentLayer = async () => {
+    const { getCurrentLayer } = await import('./state.js');
+    return getCurrentLayer();
+};
+window.getCurrentStitches = async () => {
+    const { getCurrentStitches } = await import('./state.js');
+    return getCurrentStitches();
 };
 
 console.log('✓ Professional Crochet Editor Ready!');
