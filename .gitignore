@@ -1,30 +1,7 @@
-# Dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-
-# IDE
-.vscode/settings.json
-.vscode/launch.json
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Build
 dist/
-build/
-*.map
-
-# Misc
+test-results/
+playwright-report/
+playwright/.cache/
 *.log
-.cache/
-.temp/
-
-# Personal
-*.local.*
+.DS_Store
