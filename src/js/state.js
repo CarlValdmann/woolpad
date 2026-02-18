@@ -61,7 +61,7 @@ export const state = {
     zoomLevel: 1.0,
     
     // Canvas size
-    canvasSize: 600
+    canvasSize: 1200
 };
 
 // Getters

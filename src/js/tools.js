@@ -5,7 +5,7 @@
 import { state, getCurrentStitches, setCurrentToolMode } from './state.js';
 import { getCenter, getAngleFromCenter, redrawStitches, getSelectedStitchesCenter } from './canvas.js';
 import { applySymmetry, analyzePattern } from './pattern.js';
-import { updateRoundsList, updateAlignmentButtons } from './ui.js';
+import { updateRoundsList } from './ui.js';
 import { DEFAULT_MIN_DISTANCE } from './config.js';
 import { saveState } from './history.js';
 
@@ -431,7 +431,6 @@ export function pasteStitches(offsetX = 30, offsetY = 30) {
         saveState();
         redrawStitches();
         updateRoundsList();
-        updateAlignmentButtons();
         
         console.log(`Pasted ${newIndices.length} stitches`);
     } catch (error) {
@@ -483,123 +482,10 @@ export function deleteSelectedStitches() {
         saveState();
         redrawStitches();
         updateRoundsList();
-        updateAlignmentButtons();
         
         console.log(`Deleted ${sortedIndices.length} stitches`);
     } catch (error) {
         console.error('Error in deleteSelectedStitches:', error);
-    }
-}
-
-/**
- * Joondab valitud pisteid vastavalt suunale
- */
-export function alignSelectedStitches(direction) {
-    try {
-        if (state.selectedStitches.length < 2) return;
-        
-        const stitches = getCurrentStitches();
-        
-        // Calculate bounding box
-        let minX = Infinity, minY = Infinity;
-        let maxX = -Infinity, maxY = -Infinity;
-        
-        state.selectedStitches.forEach(index => {
-            const stitch = stitches[index];
-            if (!stitch) return;
-            minX = Math.min(minX, stitch.x);
-            minY = Math.min(minY, stitch.y);
-            maxX = Math.max(maxX, stitch.x);
-            maxY = Math.max(maxY, stitch.y);
-        });
-        
-        const centerX = (minX + maxX) / 2;
-        const centerY = (minY + maxY) / 2;
-        
-        // Align stitches
-        state.selectedStitches.forEach(index => {
-            const stitch = stitches[index];
-            if (!stitch) return;
-            
-            switch (direction) {
-                case 'left':
-                    stitch.x = minX;
-                    break;
-                case 'right':
-                    stitch.x = maxX;
-                    break;
-                case 'center-h':
-                    stitch.x = centerX;
-                    break;
-                case 'top':
-                    stitch.y = minY;
-                    break;
-                case 'bottom':
-                    stitch.y = maxY;
-                    break;
-                case 'center-v':
-                    stitch.y = centerY;
-                    break;
-            }
-        });
-        
-        saveState();
-        redrawStitches();
-        updateAlignmentButtons();
-    } catch (error) {
-        console.error('Error in alignSelectedStitches:', error);
-    }
-}
-
-/**
- * Jaotab valitud pisteid ühtlaselt valitud suunas
- */
-export function distributeSelectedStitches(direction) {
-    try {
-        if (state.selectedStitches.length < 3) return;
-        
-        const stitches = getCurrentStitches();
-        const selectedStitchData = state.selectedStitches
-            .map(index => ({ index, stitch: stitches[index] }))
-            .filter(item => item.stitch)
-            .sort((a, b) => {
-                if (direction === 'horizontal') {
-                    return a.stitch.x - b.stitch.x;
-                } else {
-                    return a.stitch.y - b.stitch.y;
-                }
-            });
-        
-        if (selectedStitchData.length < 3) return;
-        
-        // Get min and max positions
-        let minPos, maxPos;
-        if (direction === 'horizontal') {
-            minPos = selectedStitchData[0].stitch.x;
-            maxPos = selectedStitchData[selectedStitchData.length - 1].stitch.x;
-        } else {
-            minPos = selectedStitchData[0].stitch.y;
-            maxPos = selectedStitchData[selectedStitchData.length - 1].stitch.y;
-        }
-        
-        // Calculate spacing
-        const spacing = (maxPos - minPos) / (selectedStitchData.length - 1);
-        
-        // Distribute stitches evenly
-        selectedStitchData.forEach((item, i) => {
-            const newPos = minPos + (spacing * i);
-            if (direction === 'horizontal') {
-                item.stitch.x = newPos;
-            } else {
-                item.stitch.y = newPos;
-            }
-        });
-        
-        saveState();
-        redrawStitches();
-        updateAlignmentButtons();
-    } catch (error) {
-        console.error('Error in distributeSelectedStitches:', error);
     }
 }
 

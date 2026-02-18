@@ -5,7 +5,7 @@
 import { state, setCurrentStitch, setCurrentColor, setCurrentShape, setCurrentToolMode, setSymmetryMode, setCurrentLayerIndex, addLayer, addCustomStitch, updateCustomStitch, deleteCustomStitch, getCustomStitch, getAllCustomStitches, mergeCustomStitches, loadCustomStitchesFromLocalStorage } from './state.js';
 import { stitchNames, stitchSymbols, stitchCategories, getStitchName, getStitchSymbol, getAllStitchSymbols, getAllStitchNames, stitchSvgFiles } from './config.js';
 import { setToolMode } from './tools.js';
-import { redrawStitches, zoom, setupWheelZoom } from './canvas.js';
+import { redrawStitches, zoom, setupWheelZoom, invalidateGridCache } from './canvas.js';
 import { analyzePattern, toggleAutoContinue } from './pattern.js';
 import { drawStitch } from './canvas.js';
 import { undo, redo, initHistory } from './history.js';
@@ -406,7 +406,7 @@ export function createRightSidebar() {
             <select class="property-value" id="propCanvasSize" onchange="updateCanvasSize()">
                 <option value="400" ${state.canvasSize === 400 ? 'selected' : ''}>400x400</option>
                 <option value="500" ${state.canvasSize === 500 ? 'selected' : ''}>500x500</option>
-                <option value="600" ${(!state.canvasSize || state.canvasSize === 600) ? 'selected' : ''}>600x600</option>
+                <option value="600" ${state.canvasSize === 600 ? 'selected' : ''}>600x600</option>
                 <option value="800" ${state.canvasSize === 800 ? 'selected' : ''}>800x800</option>
                 <option value="1000" ${state.canvasSize === 1000 ? 'selected' : ''}>1000x1000</option>
                 <option value="1200" ${state.canvasSize === 1200 ? 'selected' : ''}>1200x1200</option>
@@ -415,65 +415,6 @@ export function createRightSidebar() {
     `;
             sidebar.appendChild(propsSection);
             
-            // Alignment Tools Section
-            const alignmentSection = document.createElement('div');
-            alignmentSection.className = 'sidebar-section';
-            alignmentSection.innerHTML = `
-                <h3>Joondustööriistad</h3>
-                <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; gap: 5px; justify-content: center;">
-                        <button class="menu-btn align-btn" data-align="left" title="Joonda vasakule" style="padding: 8px 12px; font-size: 16px;">←</button>
-                        <button class="menu-btn align-btn" data-align="center-h" title="Joonda horisontaalselt keskele" style="padding: 8px 12px; font-size: 16px;">⬌</button>
-                        <button class="menu-btn align-btn" data-align="right" title="Joonda paremale" style="padding: 8px 12px; font-size: 16px;">→</button>
-                    </div>
-                    <div style="display: flex; gap: 5px; justify-content: center;">
-                        <button class="menu-btn align-btn" data-align="top" title="Joonda üles" style="padding: 8px 12px; font-size: 16px;">↑</button>
-                        <button class="menu-btn align-btn" data-align="center-v" title="Joonda vertikaalselt keskele" style="padding: 8px 12px; font-size: 16px;">⬍</button>
-                        <button class="menu-btn align-btn" data-align="bottom" title="Joonda alla" style="padding: 8px 12px; font-size: 16px;">↓</button>
-                    </div>
-                    <div style="display: flex; gap: 5px; justify-content: center; margin-top: 5px; padding-top: 8px; border-top: 1px solid #e0e0e0;">
-                        <button class="menu-btn align-btn" data-distribute="horizontal" title="Jaota horisontaalselt" style="padding: 6px 10px; font-size: 12px;">↔ Jaota H</button>
-                        <button class="menu-btn align-btn" data-distribute="vertical" title="Jaota vertikaalselt" style="padding: 6px 10px; font-size: 12px;">↕ Jaota V</button>
-                    </div>
-                </div>
-            `;
-            alignmentSection.id = 'alignmentSection';
-            sidebar.appendChild(alignmentSection);
-            
-            // Add event listeners for alignment buttons
-            const alignButtons = alignmentSection.querySelectorAll('.align-btn');
-            alignButtons.forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const align = btn.dataset.align;
-                    const distribute = btn.dataset.distribute;
-                    
-                    if (align) {
-                        const { alignSelectedStitches } = await import('./tools.js');
-                        alignSelectedStitches(align);
-                    } else if (distribute) {
-                        const { distributeSelectedStitches } = await import('./tools.js');
-                        distributeSelectedStitches(distribute);
-                    }
-                });
-            });
-            
-            // Function to update alignment buttons state
-            window.updateAlignmentButtons = function() {
-                const hasSelection = state.selectedStitches.length >= 2;
-                alignButtons.forEach(btn => {
-                    if (btn.dataset.align === 'center-h' || btn.dataset.align === 'center-v') {
-                        // Center alignment needs at least 2 items
-                        btn.disabled = !hasSelection;
-                    } else if (btn.dataset.distribute) {
-                        // Distribution needs at least 3 items
-                        btn.disabled = state.selectedStitches.length < 3;
-                    } else {
-                        btn.disabled = !hasSelection;
-                    }
-                    btn.style.opacity = btn.disabled ? '0.5' : '1';
-                    btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer';
-                });
-            };
     
     // Stitch Palette
     const paletteSection = document.createElement('div');
@@ -721,11 +662,6 @@ export async function updateStitchPalette() {
     updateDrawerContent();
 }
 
-export function updateAlignmentButtons() {
-    if (typeof window.updateAlignmentButtons === 'function') {
-        window.updateAlignmentButtons();
-    }
-}
 
 export function updateRoundsList() {
     // Also update drawer if open
@@ -858,6 +794,7 @@ export function updateColor() {
 export function changeShape() {
     const shape = document.getElementById('propShape').value;
     setCurrentShape(shape);
+    invalidateGridCache(); // Grid depends on shape
     redrawStitches();
 }
 
@@ -866,11 +803,30 @@ export function updateCanvasSize() {
     if (!canvas) return;
     
     const newSize = parseInt(document.getElementById('propCanvasSize').value);
+    const oldSize = canvas.width;
+    if (newSize === oldSize) return;
+    
+    // Scale stitch positions proportionally
+    const ratio = newSize / oldSize;
+    state.layers.forEach(layer => {
+        layer.stitches.forEach(s => {
+            s.x *= ratio;
+            s.y *= ratio;
+        });
+    });
+    state.suggestions.forEach(s => {
+        s.x *= ratio;
+        s.y *= ratio;
+    });
+    
     state.canvasSize = newSize;
     
     // Update canvas dimensions
     canvas.width = newSize;
     canvas.height = newSize;
+    
+    // Invalidate caches since canvas size changed
+    invalidateGridCache();
     
     // Redraw everything
     redrawStitches();
@@ -1056,6 +1012,9 @@ export function loadJSON() {
                 state.suggestions = [];
                 
                 document.getElementById('propShape').value = state.currentShape;
+                
+                // Invalidate caches after loading new data
+                invalidateGridCache();
                 
                 // Refresh UI to show custom stitches
                 updateStitchPalette();
@@ -1274,6 +1233,7 @@ export function toggleDarkMode() {
     }
     
     updateStitchPalette();
+    invalidateGridCache(); // Grid colors depend on dark mode
     redrawStitches();
 }
 
