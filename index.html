@@ -203,6 +203,8 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
             cursor: crosshair;
             touch-action: none; /* Prevent all default touch behaviors on canvas */
+            margin: auto; /* Center within scrollable flex container */
+            flex-shrink: 0; /* Never shrink the canvas */
         }
 
         /* Right Sidebar */
@@ -2075,6 +2077,399 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         
+        // Offscreen canvas for grid caching (avoid redrawing static grid every frame)
+        const gridCanvas = document.createElement('canvas');
+        const gridCtx = gridCanvas.getContext('2d');
+        let gridDirty = true; // Flag to redraw grid only when needed
+        
+        // ============================================
+        // STITCH SPRITE CACHE
+        // Pre-renders each stitch type+color+size combo to a small offscreen canvas.
+        // Drawing a cached sprite via drawImage() is ~10-50x faster than
+        // re-executing all the path/arc/stroke operations each frame.
+        // ============================================
+        const stitchSpriteCache = new Map();
+        const SPRITE_PAD = 4; // padding around sprite
+        
+        // ============================================
+        // INLINE SVG STITCH DEFINITIONS
+        // Each stitch is defined as a function returning SVG markup.
+        // Clean, readable, scalable vector definitions.
+        // (s = scale factor, c = color, sw = base stroke-width)
+        // ============================================
+        const stitchSVGDefs = {
+            'chain': (s, c) =>
+                `<ellipse rx="${8*s}" ry="${4*s}" fill="none" stroke="${c}" stroke-width="2"/>`,
+            
+            'slip': (s, c) =>
+                `<circle r="${4*s}" fill="${c}"/>`,
+            
+            'sc': (s, c) =>
+                `<line x1="${-6*s}" y1="0" x2="${6*s}" y2="0" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="0" y1="${-6*s}" x2="0" y2="${6*s}" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'hdc': (s, c) =>
+                `<line x1="0" y1="${-8*s}" x2="0" y2="${8*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="0" x2="${6*s}" y2="0" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'dc': (s, c) =>
+                `<line x1="0" y1="${-8*s}" x2="0" y2="${8*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-4*s}" x2="${6*s}" y2="${-4*s}" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'tr': (s, c) =>
+                `<line x1="0" y1="${-8*s}" x2="0" y2="${8*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-4*s}" x2="${6*s}" y2="${-4*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-6*s}" x2="${6*s}" y2="${-6*s}" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'dtr': (s, c) =>
+                `<line x1="0" y1="${-8*s}" x2="0" y2="${8*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-2*s}" x2="${6*s}" y2="${-2*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-4*s}" x2="${6*s}" y2="${-4*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-6*s}" x2="${6*s}" y2="${-6*s}" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'sc2tog': (s, c) =>
+                `<polyline points="${-6*s},${-6*s} 0,${6*s} ${6*s},${-6*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-4*s}" y1="0" x2="${4*s}" y2="0" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-3*s}" y1="${-7*s}" x2="${3*s}" y2="${-5*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${3*s}" y1="${-7*s}" x2="${-3*s}" y2="${-5*s}" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'sc3tog': (s, c) =>
+                `<polyline points="${-6*s},${-6*s} 0,${6*s} ${6*s},${-6*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-4*s}" y1="${-2*s}" x2="${4*s}" y2="${-2*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-4*s}" y1="0" x2="${4*s}" y2="0" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-3*s}" y1="${-7*s}" x2="${3*s}" y2="${-5*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${3*s}" y1="${-7*s}" x2="${-3*s}" y2="${-5*s}" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'dc2tog': (s, c) =>
+                `<polyline points="${-6*s},${-6*s} 0,${6*s} ${6*s},${-6*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-4*s}" y1="0" x2="${4*s}" y2="0" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'dc3tog': (s, c) =>
+                `<polyline points="${-6*s},${-6*s} 0,${6*s} ${6*s},${-6*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-4*s}" y1="${-2*s}" x2="${4*s}" y2="${-2*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-4*s}" y1="0" x2="${4*s}" y2="0" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'cluster-3dc': (s, c) =>
+                `<ellipse rx="${4*s}" ry="${8*s}" fill="none" stroke="${c}" stroke-width="2"/>` +
+                `<line x1="${-2*s}" y1="${-6*s}" x2="${-2*s}" y2="${6*s}" stroke="${c}" stroke-width="${2*s}"/>` +
+                `<line x1="0" y1="${-6*s}" x2="0" y2="${6*s}" stroke="${c}" stroke-width="${2*s}"/>` +
+                `<line x1="${2*s}" y1="${-6*s}" x2="${2*s}" y2="${6*s}" stroke="${c}" stroke-width="${2*s}"/>`,
+            
+            'cluster-3hdc': (s, c) =>
+                `<ellipse rx="${5*s}" ry="${8*s}" fill="none" stroke="${c}" stroke-width="2"/>` +
+                `<line x1="0" y1="${-6*s}" x2="0" y2="${6*s}" stroke="${c}" stroke-width="${2*s}"/>`,
+            
+            'popcorn-5dc': (s, c) => {
+                let lines = `<ellipse rx="${4*s}" ry="${8*s}" fill="none" stroke="${c}" stroke-width="2"/>`;
+                for (let i = -2; i <= 2; i++) {
+                    lines += `<line x1="${i*1.5*s}" y1="${-6*s}" x2="${i*1.5*s}" y2="${6*s}" stroke="${c}" stroke-width="${1.5*s}"/>`;
+                }
+                return lines;
+            },
+            
+            'shell-5dc': (s, c) => {
+                let lines = '';
+                const r = 8 * s;
+                const sa = -Math.PI / 3, ea = Math.PI / 3;
+                for (let i = 0; i < 5; i++) {
+                    const a = sa + (ea - sa) * (i / 4);
+                    const ex = Math.cos(a) * r;
+                    const ey = -Math.sin(a) * r + 4 * s;
+                    lines += `<line x1="0" y1="${4*s}" x2="${ex}" y2="${ey}" stroke="${c}" stroke-width="${2.5*s}"/>`;
+                }
+                return lines;
+            },
+            
+            'picot-ch3': (s, c) =>
+                `<circle r="${3*s}" fill="${c}"/>` +
+                `<path d="M${2*s},${-2*s} Q${4*s},${-4*s} ${6*s},${-2*s}" fill="none" stroke="${c}" stroke-width="2"/>`,
+            
+            'fpdc': (s, c) =>
+                `<line x1="0" y1="${-8*s}" x2="0" y2="${8*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-4*s}" x2="${6*s}" y2="${-4*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<path d="M${2*s},${6*s} A${2*s},${2*s} 0 0,1 ${6*s},${6*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'bpdc': (s, c) =>
+                `<line x1="0" y1="${-8*s}" x2="0" y2="${8*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<line x1="${-6*s}" y1="${-4*s}" x2="${6*s}" y2="${-4*s}" stroke="${c}" stroke-width="${2.5*s}"/>` +
+                `<path d="M${-2*s},${6*s} A${2*s},${2*s} 0 0,0 ${-6*s},${6*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}"/>`,
+            
+            'blo': (s, c) =>
+                `<path d="M${-3*s},${-3*s} A${3*s},${3*s} 0 0,0 ${-3*s},${3*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}" transform="translate(${3*s},0)"/>`,
+            
+            'flo': (s, c) =>
+                `<path d="M${3*s},${-3*s} A${3*s},${3*s} 0 0,1 ${3*s},${3*s}" fill="none" stroke="${c}" stroke-width="${2.5*s}" transform="translate(${-3*s},0)"/>`
+        };
+        
+        function getSpriteKey(stitch, color, size, isSuggestion) {
+            return `${stitch}_${color}_${size}_${isSuggestion ? 1 : 0}`;
+        }
+        
+        // Renders an SVG definition SYNCHRONOUSLY to an offscreen canvas
+        // using Canvas 2D API. No Image loading, no Blob, no async - instant.
+        function renderSVGDefToCanvas(oc, stitch, color, size, isSuggestion) {
+            const scale = size / 22;
+            
+            if (isSuggestion) {
+                const bgR = size * 0.7;
+                oc.fillStyle = 'rgba(40, 167, 69, 0.3)';
+                oc.beginPath();
+                oc.arc(0, 0, bgR, 0, Math.PI * 2);
+                oc.fill();
+                oc.strokeStyle = '#28a745';
+                oc.lineWidth = 3;
+                oc.beginPath();
+                oc.arc(0, 0, bgR, 0, Math.PI * 2);
+                oc.stroke();
+                color = '#28a745';
+            }
+            
+            oc.strokeStyle = color;
+            oc.fillStyle = color;
+            oc.lineWidth = 2;
+            
+            // Use the SVG def to get the element list, then render via Canvas API
+            const def = stitchSVGDefs[stitch];
+            if (def) {
+                // Parse the SVG markup string and render each element
+                const svgContent = def(scale, color);
+                _renderSVGElements(oc, svgContent, scale);
+            } else {
+                // Fallback: text symbol
+                oc.font = `bold ${size}px Arial`;
+                oc.textAlign = 'center';
+                oc.textBaseline = 'middle';
+                oc.fillText(stitchSymbols[stitch] || '?', 0, 0);
+            }
+        }
+        
+        // Mini SVG-to-Canvas renderer: parses simple SVG elements and draws them
+        // Supports: line, circle, ellipse, polyline, path (basic), text
+        function _renderSVGElements(oc, svgStr, scale) {
+            // Match all self-closing SVG tags
+            const tagRe = /<(\w+)\s+([^/]*?)\/>/g;
+            let m;
+            while ((m = tagRe.exec(svgStr)) !== null) {
+                const tag = m[1];
+                const attrs = m[2];
+                const a = (name) => {
+                    const re = new RegExp(name + '=["\']([^"\']*)["\']');
+                    const match = attrs.match(re);
+                    return match ? match[1] : null;
+                };
+                const n = (name) => parseFloat(a(name)) || 0;
+                
+                const stroke = a('stroke');
+                const fill = a('fill');
+                const sw = n('stroke-width') || 2;
+                
+                if (stroke) oc.strokeStyle = stroke;
+                if (fill && fill !== 'none') oc.fillStyle = fill;
+                oc.lineWidth = sw;
+                
+                switch (tag) {
+                    case 'line':
+                        oc.beginPath();
+                        oc.moveTo(n('x1'), n('y1'));
+                        oc.lineTo(n('x2'), n('y2'));
+                        oc.stroke();
+                        break;
+                    case 'circle': {
+                        const r = n('r');
+                        oc.beginPath();
+                        oc.arc(0, 0, r, 0, Math.PI * 2);
+                        if (fill && fill !== 'none') oc.fill();
+                        if (stroke && stroke !== 'none' && (!fill || fill === 'none')) oc.stroke();
+                        break;
+                    }
+                    case 'ellipse': {
+                        const rx = n('rx'), ry = n('ry');
+                        oc.beginPath();
+                        oc.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+                        if (fill && fill !== 'none') oc.fill();
+                        else oc.stroke();
+                        break;
+                    }
+                    case 'polyline': {
+                        const pts = a('points');
+                        if (pts) {
+                            const coords = pts.trim().split(/\s+/).map(p => p.split(',').map(Number));
+                            oc.beginPath();
+                            coords.forEach((c, i) => i === 0 ? oc.moveTo(c[0], c[1]) : oc.lineTo(c[0], c[1]));
+                            if (fill && fill !== 'none') oc.fill();
+                            oc.stroke();
+                        }
+                        break;
+                    }
+                    case 'path': {
+                        // Basic Path2D support for SVG d attribute
+                        const d = a('d');
+                        if (d) {
+                            try {
+                                const p2d = new Path2D(d);
+                                if (fill && fill !== 'none') oc.fill(p2d);
+                                if (!fill || fill === 'none') oc.stroke(p2d);
+                            } catch(e) {
+                                // Path2D parse failed, skip
+                            }
+                        }
+                        break;
+                    }
+                    case 'text': {
+                        // Not used in normal stitch rendering
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function getStitchSprite(stitch, color, size, isSuggestion) {
+            const key = getSpriteKey(stitch, color, size, isSuggestion);
+            let sprite = stitchSpriteCache.get(key);
+            if (sprite) return sprite;
+            
+            const dim = Math.ceil(size * 2) + SPRITE_PAD * 2;
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = dim;
+            offCanvas.height = dim;
+            const oc = offCanvas.getContext('2d');
+            
+            // Render SYNCHRONOUSLY - no async Image loading needed
+            oc.translate(dim / 2, dim / 2);
+            renderSVGDefToCanvas(oc, stitch, color, size, isSuggestion);
+            
+            sprite = { canvas: offCanvas, halfDim: dim / 2 };
+            stitchSpriteCache.set(key, sprite);
+            return sprite;
+        }
+        
+        // Pre-load sprites for all stitch types at init time
+        function preloadSprites() {
+            const defaultColor = '#333';
+            const defaultSize = 22;
+            for (const stitchType of Object.keys(stitchSVGDefs)) {
+                getStitchSprite(stitchType, defaultColor, defaultSize, false);
+            }
+        }
+        
+        function clearSpriteCache() {
+            stitchSpriteCache.clear();
+        }
+        
+        // ============================================
+        // INACTIVE LAYER CACHE
+        // Caches the combined rendering of all non-active visible layers
+        // so we only re-render them when something actually changes.
+        // ============================================
+        let layerCacheCanvas = document.createElement('canvas');
+        let layerCacheCtx = layerCacheCanvas.getContext('2d');
+        let layerCacheDirty = true;
+        let layerCacheKey = ''; // tracks what was cached
+        
+        function invalidateLayerCache() {
+            layerCacheDirty = true;
+        }
+        
+        // requestAnimationFrame batching - avoid multiple redraws per frame
+        let rafPending = false;
+        function scheduleRedraw() {
+            if (!rafPending) {
+                rafPending = true;
+                requestAnimationFrame(() => {
+                    rafPending = false;
+                    redrawStitches();
+                });
+            }
+        }
+        
+        // Debounce helper for expensive non-visual operations
+        function debounce(fn, delay) {
+            let timer = null;
+            return function(...args) {
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => { timer = null; fn.apply(this, args); }, delay);
+            };
+        }
+        
+        // Debounced versions of expensive functions (used during drag drawing)
+        const debouncedAnalyzePattern = debounce(() => analyzePattern(), 150);
+        const debouncedUpdateRoundsList = debounce(() => updateRoundsList(), 100);
+        
+        // Squared distance helper (avoids expensive Math.sqrt)
+        function distSq(x1, y1, x2, y2) {
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            return dx * dx + dy * dy;
+        }
+        
+        // ============================================
+        // SPATIAL HASH GRID
+        // Makes proximity checks O(1) instead of O(n).
+        // Instead of checking distance against ALL stitches,
+        // only check stitches in nearby cells.
+        // ============================================
+        const SPATIAL_CELL = 40; // cell size >= 2 * minDistance (20)
+        let spatialGrid = {};
+        
+        function spatialKey(x, y) {
+            return ((x / SPATIAL_CELL) | 0) + ',' + ((y / SPATIAL_CELL) | 0);
+        }
+        
+        function spatialInsert(x, y) {
+            const key = spatialKey(x, y);
+            if (!spatialGrid[key]) spatialGrid[key] = [];
+            spatialGrid[key].push(x, y); // flat array: x0,y0,x1,y1,...
+        }
+        
+        function spatialHasNearby(x, y, minDistSq) {
+            const cx = (x / SPATIAL_CELL) | 0;
+            const cy = (y / SPATIAL_CELL) | 0;
+            // Check 3x3 neighbourhood
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const cell = spatialGrid[(cx + dx) + ',' + (cy + dy)];
+                    if (cell) {
+                        for (let i = 0; i < cell.length; i += 2) {
+                            if (distSq(x, y, cell[i], cell[i + 1]) < minDistSq) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        
+        function spatialRebuild(stitches) {
+            spatialGrid = {};
+            for (let i = 0; i < stitches.length; i++) {
+                spatialInsert(stitches[i].x, stitches[i].y);
+            }
+        }
+        
+        // ============================================
+        // INCREMENTAL DRAWING DURING DRAG
+        // Instead of clearing & redrawing ALL stitches each frame,
+        // we snapshot the canvas at drag start, and only draw new
+        // stitches on top. Full redraw happens once on mouseup.
+        // ============================================
+        let dragSnapshotData = null; // ImageData snapshot of canvas at drag start
+        let isDragDrawing = false;   // true during drag-draw
+        
+        function takeDragSnapshot() {
+            dragSnapshotData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            isDragDrawing = true;
+        }
+        
+        function restoreDragSnapshot() {
+            if (dragSnapshotData) {
+                ctx.putImageData(dragSnapshotData, 0, 0);
+            }
+        }
+        
+        function endDragDrawing() {
+            isDragDrawing = false;
+            dragSnapshotData = null;
+        }
+        
         console.log('Professional Crochet Editor Loaded');
         
         // ============================================
@@ -2114,6 +2509,7 @@
         function initUI() {
             createLeftToolbar();
             createRightSidebar();
+            preloadSprites(); // Pre-load SVG sprites before user starts drawing
             initCanvas();
         }
 
@@ -2245,6 +2641,15 @@
                 <div class="property-row">
                     <span class="property-label">Värv:</span>
                     <input type="color" id="propColor" value="${currentColor}" onchange="updateColor()" style="width: 50px; height: 30px; border: none; cursor: pointer;">
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Lõuendi suurus:</span>
+                    <select class="property-value" id="propCanvasSize" onchange="changeCanvasSize()">
+                        <option value="400">400 × 400</option>
+                        <option value="600" selected>600 × 600</option>
+                        <option value="800">800 × 800</option>
+                        <option value="1000">1000 × 1000</option>
+                    </select>
                 </div>
                 <div class="property-row">
                     <span class="property-label">Kuju:</span>
@@ -2603,6 +3008,7 @@
                 item.className = 'round-item' + (index === currentLayerIndex ? ' active' : '');
                 item.onclick = () => {
                     currentLayerIndex = index;
+                    invalidateLayerCache();
                     updateRoundsList();
                     redrawStitches();
                 };
@@ -2637,72 +3043,91 @@
         // ============================================
         
         function initCanvas() {
-            drawGrid();
-            drawShapeGuide();
+            // Ensure CSS size matches internal resolution
+            canvas.style.width = canvas.width + 'px';
+            canvas.style.height = canvas.height + 'px';
+            gridDirty = true;
             redrawStitches();
         }
 
         function drawGrid() {
+            // Use cached grid canvas if available
+            if (!gridDirty && gridCanvas.width === canvas.width && gridCanvas.height === canvas.height) {
+                ctx.drawImage(gridCanvas, 0, 0);
+                return;
+            }
+            
+            // Rebuild grid cache
+            gridCanvas.width = canvas.width;
+            gridCanvas.height = canvas.height;
+            const gctx = gridCtx;
+            
             const size = canvas.width;
             const center = size / 2;
             const isDark = document.body.classList.contains('dark-mode');
             
-            ctx.strokeStyle = isDark ? '#2a2a2a' : '#e9ecef';
-            ctx.lineWidth = 1;
+            gctx.strokeStyle = isDark ? '#2a2a2a' : '#e9ecef';
+            gctx.lineWidth = 1;
             
             if (currentShape === 'circle' || currentShape === 'hexagon' || currentShape === 'octagon') {
                 for (let r = 30; r < size / 2; r += 40) {
-                    ctx.beginPath();
-                    ctx.arc(center, center, r, 0, Math.PI * 2);
-                    ctx.stroke();
+                    gctx.beginPath();
+                    gctx.arc(center, center, r, 0, Math.PI * 2);
+                    gctx.stroke();
                 }
                 
                 const divisions = currentShape === 'hexagon' ? 6 : currentShape === 'octagon' ? 8 : 12;
                 for (let i = 0; i < divisions; i++) {
                     const angle = (Math.PI * 2 * i) / divisions;
-                    ctx.beginPath();
-                    ctx.moveTo(center, center);
-                    ctx.lineTo(
+                    gctx.beginPath();
+                    gctx.moveTo(center, center);
+                    gctx.lineTo(
                         center + Math.cos(angle) * (size / 2),
                         center + Math.sin(angle) * (size / 2)
                     );
-                    ctx.stroke();
+                    gctx.stroke();
                 }
             } else if (currentShape === 'square') {
                 const spacing = 30;
                 for (let i = spacing; i < size; i += spacing) {
-                    ctx.beginPath();
-                    ctx.moveTo(i, 0);
-                    ctx.lineTo(i, size);
-                    ctx.stroke();
+                    gctx.beginPath();
+                    gctx.moveTo(i, 0);
+                    gctx.lineTo(i, size);
+                    gctx.stroke();
                     
-                    ctx.beginPath();
-                    ctx.moveTo(0, i);
-                    ctx.lineTo(size, i);
-                    ctx.stroke();
+                    gctx.beginPath();
+                    gctx.moveTo(0, i);
+                    gctx.lineTo(size, i);
+                    gctx.stroke();
                 }
             }
+            
+            // Also draw shape guide into the cached grid canvas
+            drawShapeGuideToCtx(gctx);
+            
+            gridDirty = false;
+            ctx.drawImage(gridCanvas, 0, 0);
         }
 
-        function drawShapeGuide() {
+        function drawShapeGuideToCtx(c) {
             const size = canvas.width;
             const center = size / 2;
             const radius = size / 2 - 60;
             
-            ctx.strokeStyle = '#6B8CAE';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            c.strokeStyle = '#6B8CAE';
+            c.lineWidth = 2;
+            c.setLineDash([5, 5]);
             
             switch (currentShape) {
                 case 'circle':
-                    ctx.beginPath();
-                    ctx.arc(center, center, radius, 0, Math.PI * 2);
-                    ctx.stroke();
+                    c.beginPath();
+                    c.arc(center, center, radius, 0, Math.PI * 2);
+                    c.stroke();
                     break;
                     
                 case 'square':
                     const squareSize = radius * 1.4;
-                    ctx.strokeRect(
+                    c.strokeRect(
                         center - squareSize / 2,
                         center - squareSize / 2,
                         squareSize,
@@ -2711,396 +3136,141 @@
                     break;
                     
                 case 'hexagon':
-                    drawPolygon(center, center, radius, 6);
+                    drawPolygonToCtx(c, center, center, radius, 6);
                     break;
                     
                 case 'triangle':
-                    drawPolygon(center, center, radius, 3);
+                    drawPolygonToCtx(c, center, center, radius, 3);
                     break;
                     
                 case 'octagon':
-                    drawPolygon(center, center, radius, 8);
+                    drawPolygonToCtx(c, center, center, radius, 8);
                     break;
             }
             
-            ctx.setLineDash([]);
+            c.setLineDash([]);
+        }
+        
+        function drawShapeGuide() {
+            drawShapeGuideToCtx(ctx);
         }
 
-        function drawPolygon(x, y, radius, sides) {
-            ctx.beginPath();
+        function drawPolygonToCtx(c, x, y, radius, sides) {
+            c.beginPath();
             for (let i = 0; i <= sides; i++) {
                 const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
                 const px = x + Math.cos(angle) * radius;
                 const py = y + Math.sin(angle) * radius;
                 if (i === 0) {
-                    ctx.moveTo(px, py);
+                    c.moveTo(px, py);
                 } else {
-                    ctx.lineTo(px, py);
+                    c.lineTo(px, py);
                 }
             }
-            ctx.stroke();
+            c.stroke();
+        }
+        
+        function drawPolygon(x, y, radius, sides) {
+            drawPolygonToCtx(ctx, x, y, radius, sides);
         }
 
+        // drawStitch: uses the SVG sprite cache for massive speedup.
+        // Each unique stitch+color+size combo is rendered ONCE from inline SVG,
+        // then stamped via drawImage() (with rotation) on every subsequent call.
         function drawStitch(x, y, stitch, color, isSuggestion = false, size = 22, rotation = 0) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate((rotation * Math.PI) / 180);
+            const sprite = getStitchSprite(stitch, color, size, isSuggestion);
+            const hd = sprite.halfDim;
             
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            
-            const bgRadius = size * 0.7;
-            const scale = size / 22; // Scale factor based on size
-            
-            if (isSuggestion) {
-                ctx.fillStyle = 'rgba(40, 167, 69, 0.3)';
-                ctx.beginPath();
-                ctx.arc(0, 0, bgRadius, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.strokeStyle = '#28a745';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(0, 0, bgRadius, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.strokeStyle = '#28a745';
-                ctx.fillStyle = '#28a745';
+            if (rotation) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate((rotation * Math.PI) / 180);
+                ctx.drawImage(sprite.canvas, -hd, -hd);
+                ctx.restore();
+            } else {
+                // No rotation — skip save/restore entirely (fastest path)
+                ctx.drawImage(sprite.canvas, x - hd, y - hd);
             }
-            
-            // Draw specific symbols using Canvas API to match chart exactly
-            switch(stitch) {
-                case 'chain':
-                    // Horizontal oval
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                    break;
-                    
-                case 'slip':
-                    // Solid circle
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 4 * scale, 0, Math.PI * 2);
-                    ctx.fill();
-                    break;
-                    
-                case 'sc':
-                    // Plus sign
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(-6 * scale, 0);
-                    ctx.lineTo(6 * scale, 0);
-                    ctx.moveTo(0, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'hdc':
-                    // T shape
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8 * scale);
-                    ctx.lineTo(0, 8 * scale);
-                    ctx.moveTo(-6 * scale, 0);
-                    ctx.lineTo(6 * scale, 0);
-                    ctx.stroke();
-                    break;
-                    
-                case 'dc':
-                    // T with one horizontal bar
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8 * scale);
-                    ctx.lineTo(0, 8 * scale);
-                    ctx.moveTo(-6 * scale, -4 * scale);
-                    ctx.lineTo(6 * scale, -4 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'tr':
-                    // T with two horizontal bars
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8 * scale);
-                    ctx.lineTo(0, 8 * scale);
-                    ctx.moveTo(-6 * scale, -4 * scale);
-                    ctx.lineTo(6 * scale, -4 * scale);
-                    ctx.moveTo(-6 * scale, -6 * scale);
-                    ctx.lineTo(6 * scale, -6 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'dtr':
-                    // T with three horizontal bars
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8 * scale);
-                    ctx.lineTo(0, 8 * scale);
-                    ctx.moveTo(-6 * scale, -2 * scale);
-                    ctx.lineTo(6 * scale, -2 * scale);
-                    ctx.moveTo(-6 * scale, -4 * scale);
-                    ctx.lineTo(6 * scale, -4 * scale);
-                    ctx.moveTo(-6 * scale, -6 * scale);
-                    ctx.lineTo(6 * scale, -6 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'sc2tog':
-                    // Inverted V with bar and X at top
-                    ctx.lineWidth = 2.5 * scale;
-                    // V shape
-                    ctx.beginPath();
-                    ctx.moveTo(-6 * scale, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.lineTo(6 * scale, -6 * scale);
-                    ctx.stroke();
-                    // Horizontal bar across legs
-                    ctx.beginPath();
-                    ctx.moveTo(-4 * scale, 0);
-                    ctx.lineTo(4 * scale, 0);
-                    ctx.stroke();
-                    // X at top
-                    ctx.beginPath();
-                    ctx.moveTo(-3 * scale, -7 * scale);
-                    ctx.lineTo(3 * scale, -5 * scale);
-                    ctx.moveTo(3 * scale, -7 * scale);
-                    ctx.lineTo(-3 * scale, -5 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'sc3tog':
-                    // Inverted V with two bars and X at top
-                    ctx.lineWidth = 2.5 * scale;
-                    // V shape
-                    ctx.beginPath();
-                    ctx.moveTo(-6 * scale, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.lineTo(6 * scale, -6 * scale);
-                    ctx.stroke();
-                    // Two horizontal bars across legs
-                    ctx.beginPath();
-                    ctx.moveTo(-4 * scale, -2 * scale);
-                    ctx.lineTo(4 * scale, -2 * scale);
-                    ctx.moveTo(-4 * scale, 0);
-                    ctx.lineTo(4 * scale, 0);
-                    ctx.stroke();
-                    // X at top
-                    ctx.beginPath();
-                    ctx.moveTo(-3 * scale, -7 * scale);
-                    ctx.lineTo(3 * scale, -5 * scale);
-                    ctx.moveTo(3 * scale, -7 * scale);
-                    ctx.lineTo(-3 * scale, -5 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'dc2tog':
-                    // Inverted V with bar (no X at top)
-                    ctx.lineWidth = 2.5 * scale;
-                    // V shape
-                    ctx.beginPath();
-                    ctx.moveTo(-6 * scale, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.lineTo(6 * scale, -6 * scale);
-                    ctx.stroke();
-                    // Horizontal bar across legs
-                    ctx.beginPath();
-                    ctx.moveTo(-4 * scale, 0);
-                    ctx.lineTo(4 * scale, 0);
-                    ctx.stroke();
-                    break;
-                    
-                case 'dc3tog':
-                    // Inverted V with two bars (no X at top)
-                    ctx.lineWidth = 2.5 * scale;
-                    // V shape
-                    ctx.beginPath();
-                    ctx.moveTo(-6 * scale, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.lineTo(6 * scale, -6 * scale);
-                    ctx.stroke();
-                    // Two horizontal bars across legs
-                    ctx.beginPath();
-                    ctx.moveTo(-4 * scale, -2 * scale);
-                    ctx.lineTo(4 * scale, -2 * scale);
-                    ctx.moveTo(-4 * scale, 0);
-                    ctx.lineTo(4 * scale, 0);
-                    ctx.stroke();
-                    break;
-                    
-                case 'cluster-3dc':
-                    // Vertical oval with 3 lines
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                    // 3 vertical lines
-                    ctx.lineWidth = 2 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(-2 * scale, -6 * scale);
-                    ctx.lineTo(-2 * scale, 6 * scale);
-                    ctx.moveTo(0, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.moveTo(2 * scale, -6 * scale);
-                    ctx.lineTo(2 * scale, 6 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'cluster-3hdc':
-                    // Vertical oval with 1 line (puff/bobble)
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, 5 * scale, 8 * scale, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                    // 1 vertical line
-                    ctx.lineWidth = 2 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -6 * scale);
-                    ctx.lineTo(0, 6 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'popcorn-5dc':
-                    // Vertical oval with 5 lines
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, 4 * scale, 8 * scale, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                    // 5 vertical lines
-                    ctx.lineWidth = 1.5 * scale;
-                    ctx.beginPath();
-                    for (let i = -2; i <= 2; i++) {
-                        ctx.moveTo(i * 1.5 * scale, -6 * scale);
-                        ctx.lineTo(i * 1.5 * scale, 6 * scale);
-                    }
-                    ctx.stroke();
-                    break;
-                    
-                case 'shell-5dc':
-                    // Fan shape with 5 lines
-                    ctx.lineWidth = 2.5 * scale;
-                    const fanRadius = 8 * scale;
-                    const fanStartAngle = -Math.PI / 3;
-                    const fanEndAngle = Math.PI / 3;
-                    for (let i = 0; i < 5; i++) {
-                        const angle = fanStartAngle + (fanEndAngle - fanStartAngle) * (i / 4);
-                        ctx.beginPath();
-                        ctx.moveTo(0, 4 * scale);
-                        ctx.lineTo(
-                            Math.cos(angle) * fanRadius,
-                            -Math.sin(angle) * fanRadius + 4 * scale
-                        );
-                        ctx.stroke();
-                    }
-                    break;
-                    
-                case 'picot-ch3':
-                    // Small solid circle with loop extending up and right
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 3 * scale, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Loop extending up and to the right (ch-3 shape)
-                    ctx.beginPath();
-                    ctx.moveTo(2 * scale, -2 * scale);
-                    ctx.quadraticCurveTo(4 * scale, -4 * scale, 6 * scale, -2 * scale);
-                    ctx.stroke();
-                    break;
-                    
-                case 'fpdc':
-                    // T with hook to right
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8 * scale);
-                    ctx.lineTo(0, 8 * scale);
-                    ctx.moveTo(-6 * scale, -4 * scale);
-                    ctx.lineTo(6 * scale, -4 * scale);
-                    // Hook to right
-                    ctx.arc(4 * scale, 6 * scale, 2 * scale, Math.PI, 0, false);
-                    ctx.stroke();
-                    break;
-                    
-                case 'bpdc':
-                    // T with hook to left
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8 * scale);
-                    ctx.lineTo(0, 8 * scale);
-                    ctx.moveTo(-6 * scale, -4 * scale);
-                    ctx.lineTo(6 * scale, -4 * scale);
-                    // Hook to left
-                    ctx.arc(-4 * scale, 6 * scale, 2 * scale, 0, Math.PI, false);
-                    ctx.stroke();
-                    break;
-                    
-                case 'blo':
-                    // Open parenthesis
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.arc(-3 * scale, 0, 3 * scale, -Math.PI / 2, Math.PI / 2, false);
-                    ctx.stroke();
-                    break;
-                    
-                case 'flo':
-                    // Close parenthesis
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.arc(3 * scale, 0, 3 * scale, Math.PI / 2, -Math.PI / 2, false);
-                    ctx.stroke();
-                    break;
-                    
-                default:
-                    // Fallback to text symbol if stitch not found
-                    ctx.font = `bold ${size}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const symbol = stitchSymbols[stitch];
-                    if (symbol) {
-            ctx.fillText(symbol, 0, 0);
-                    } else {
-                        ctx.fillText('?', 0, 0);
-                    }
-            }
-            
-            ctx.restore();
         }
 
         function redrawStitches() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawGrid();
-            drawShapeGuide();
+            drawGrid(); // Uses cached offscreen canvas (fast blit)
+            
+            // Pre-build a Set for O(1) selection lookup instead of O(n) Array.includes
+            const selectedSet = new Set(selectedStitches);
             
             suggestions.forEach(s => {
                 drawStitch(s.x, s.y, s.stitch, s.color, true, s.size, s.rotation);
             });
             
             if (showAllLayers) {
+                // --- Inactive layers cache ---
+                // Build a key from all non-active visible layers' stitch count + id
+                // to detect when we need to re-render the cache
+                let newLayerKey = currentLayerIndex + ':';
                 layers.forEach((layer, index) => {
-                    if (layer.visible) {
-                        const isActive = index === currentLayerIndex;
-                        layer.stitches.forEach((s, stitchIndex) => {
-                            const isSelected = selectedStitches.includes(stitchIndex);
-                            if (!isActive) {
-                                ctx.globalAlpha = 0.3;
-                                drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
-                                ctx.globalAlpha = 1.0;
-                            } else {
-                                drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
-                            }
-                            // Highlight selected stitches
-                            if (isSelected && isActive) {
-                                ctx.strokeStyle = '#0066ff';
-                                ctx.lineWidth = 2;
-                                ctx.setLineDash([5, 5]);
-                                ctx.strokeRect(s.x - 15, s.y - 15, 30, 30);
-                                ctx.setLineDash([]);
-                            }
-                        });
+                    if (index !== currentLayerIndex && layer.visible) {
+                        newLayerKey += index + '=' + layer.stitches.length + ',';
                     }
                 });
+                
+                if (layerCacheDirty || layerCacheKey !== newLayerKey ||
+                    layerCacheCanvas.width !== canvas.width || layerCacheCanvas.height !== canvas.height) {
+                    // Re-render inactive layers to cache
+                    layerCacheCanvas.width = canvas.width;
+                    layerCacheCanvas.height = canvas.height;
+                    layerCacheCtx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw directly on layerCacheCtx
+                    layers.forEach((layer, index) => {
+                        if (layer.visible && index !== currentLayerIndex) {
+                            layer.stitches.forEach(s => {
+                                // Draw stitch sprites directly onto layerCacheCtx
+                                const sprite = getStitchSprite(s.stitch, s.color, s.size || 22, false);
+                                const hd = sprite.halfDim;
+                                const rot = s.rotation || 0;
+                                if (rot) {
+                                    layerCacheCtx.save();
+                                    layerCacheCtx.translate(s.x, s.y);
+                                    layerCacheCtx.rotate((rot * Math.PI) / 180);
+                                    layerCacheCtx.drawImage(sprite.canvas, -hd, -hd);
+                                    layerCacheCtx.restore();
+                                } else {
+                                    layerCacheCtx.drawImage(sprite.canvas, s.x - hd, s.y - hd);
+                                }
+                            });
+                        }
+                    });
+                    
+                    layerCacheKey = newLayerKey;
+                    layerCacheDirty = false;
+                }
+                
+                // Blit cached inactive layers at 30% opacity
+                ctx.globalAlpha = 0.3;
+                ctx.drawImage(layerCacheCanvas, 0, 0);
+                ctx.globalAlpha = 1.0;
+                
+                // Draw active layer
+                const activeLayer = getCurrentLayer();
+                if (activeLayer && activeLayer.visible) {
+                    activeLayer.stitches.forEach((s, stitchIndex) => {
+                        drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
+                        if (selectedSet.has(stitchIndex)) {
+                            ctx.strokeStyle = '#0066ff';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.strokeRect(s.x - 15, s.y - 15, 30, 30);
+                            ctx.setLineDash([]);
+                        }
+                    });
+                }
             } else {
                 const currentLayer = getCurrentLayer();
                 currentLayer.stitches.forEach((s, stitchIndex) => {
-                    const isSelected = selectedStitches.includes(stitchIndex);
                     drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
-                    // Highlight selected stitches
-                    if (isSelected) {
+                    if (selectedSet.has(stitchIndex)) {
                         ctx.strokeStyle = '#0066ff';
                         ctx.lineWidth = 2;
                         ctx.setLineDash([5, 5]);
@@ -3156,22 +3326,26 @@
             isDrawing = true;
             
             if (currentToolMode === 'draw') {
+                // Build spatial hash from current stitches for fast O(1) proximity checks
+                spatialRebuild(getCurrentStitches());
+                // Do a full render first, then snapshot for incremental drawing
+                redrawStitches();
+                takeDragSnapshot();
                 handleDrawMode(x, y);
             } else if (currentToolMode === 'erase') {
                 handleEraseMode(x, y);
             } else if (currentToolMode === 'line') {
                 lineStartPoint = {x, y};
             } else if (currentToolMode === 'move') {
-                // Find the stitch under the mouse cursor
+                // Find the stitch under the mouse cursor (optimized squared distance)
                 const stitches = getCurrentStitches();
                 let clickedStitchIndex = null;
-                let minDist = Infinity;
+                let minDistSqVal = 400; // 20^2
                 
                 for (let i = 0; i < stitches.length; i++) {
-                    const stitch = stitches[i];
-                    const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
-                    if (dist < 20 && dist < minDist) {
-                        minDist = dist;
+                    const d = distSq(x, y, stitches[i].x, stitches[i].y);
+                    if (d < minDistSqVal) {
+                        minDistSqVal = d;
                         clickedStitchIndex = i;
                     }
                 }
@@ -3211,60 +3385,67 @@
             }
         });
 
+        // Throttled mousemove via requestAnimationFrame
+        let mouseMoveRafPending = false;
         canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            // Store latest event data; skip processing if rAF already pending
+            if (mouseMoveRafPending) return;
+            mouseMoveRafPending = true;
             
-            if (isDrawing) {
-                if (currentToolMode === 'draw') {
-                    handleDrawMode(x, y);
-                } else if (currentToolMode === 'erase') {
-                    handleEraseMode(x, y);
+            requestAnimationFrame(() => {
+                mouseMoveRafPending = false;
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (isDrawing) {
+                    if (currentToolMode === 'draw') {
+                        handleDrawMode(x, y);
+                    } else if (currentToolMode === 'erase') {
+                        handleEraseMode(x, y);
+                    } else if (currentToolMode === 'move') {
+                        // Move single stitch
+                        if (movingSingleStitch && moveStartPoint) {
+                            handleMoveSingleStitch(x, y);
+                        }
+                    } else if (currentToolMode === 'select') {
+                        // Check if we're moving/rotating selected stitches or creating new selection
+                        if (moveStartPoint && movingStitches.length > 0) {
+                            // Move or rotate selected stitches
+                            handleMoveSelectedStitches(x, y);
+                        } else if (selectionStart) {
+                            // Update selection end point while dragging
+                            selectionEnd = {x, y};
+                            scheduleRedraw();
+                        }
+                    }
                 } else if (currentToolMode === 'move') {
-                    // Move single stitch
-                    if (movingSingleStitch && moveStartPoint) {
-                        handleMoveSingleStitch(x, y);
+                    // Check if mouse is over a stitch (optimized squared distance)
+                    const stitches = getCurrentStitches();
+                    let isOverStitch = false;
+                    
+                    for (let i = 0; i < stitches.length; i++) {
+                        if (distSq(x, y, stitches[i].x, stitches[i].y) < 400) {
+                            isOverStitch = true;
+                            break;
+                        }
                     }
+                    
+                    canvas.style.cursor = isOverStitch ? 'move' : 'default';
                 } else if (currentToolMode === 'select') {
-                    // Check if we're moving/rotating selected stitches or creating new selection
-                    if (moveStartPoint && movingStitches.length > 0) {
-                        // Move or rotate selected stitches
-                        handleMoveSelectedStitches(x, y);
-                    } else if (selectionStart) {
-                        // Update selection end point while dragging
-                        selectionEnd = {x, y};
-                        redrawStitches();
-                    }
-                }
-            } else if (currentToolMode === 'move') {
-                // Check if mouse is over a stitch
-                const stitches = getCurrentStitches();
-                let isOverStitch = false;
-                
-                for (let i = 0; i < stitches.length; i++) {
-                    const stitch = stitches[i];
-                    const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
-                    if (dist < 20) {
-                        isOverStitch = true;
-                        break;
-                    }
-                }
-                
-                canvas.style.cursor = isOverStitch ? 'move' : 'default';
-            } else if (currentToolMode === 'select') {
-                // Check if mouse is over selected area - prepare for moving/rotating
-                if (selectedStitches.length > 0) {
-                    const isOverSelection = isPointInSelection(x, y);
-                    if (isOverSelection) {
-                        canvas.style.cursor = e.shiftKey ? 'grab' : 'move';
+                    // Check if mouse is over selected area - prepare for moving/rotating
+                    if (selectedStitches.length > 0) {
+                        const isOverSelection = isPointInSelection(x, y);
+                        if (isOverSelection) {
+                            canvas.style.cursor = e.shiftKey ? 'grab' : 'move';
+                        } else {
+                            canvas.style.cursor = 'crosshair';
+                        }
                     } else {
                         canvas.style.cursor = 'crosshair';
                     }
-                } else {
-                    canvas.style.cursor = 'crosshair';
                 }
-            }
+            });
         });
 
         canvas.addEventListener('mouseup', (e) => {
@@ -3297,84 +3478,85 @@
             }
             
             isDrawing = false;
+            
+            // End incremental drag drawing; do a clean full redraw
+            endDragDrawing();
+            // Run the non-debounced versions now for accuracy
+            analyzePattern();
+            updateRoundsList();
             redrawStitches();
         });
 
         function handleDrawMode(x, y) {
             const stitches = getCurrentStitches();
+            const minDistSq = 400; // 20 * 20
             
+            // Check suggestions (small array, linear scan is fine)
             let clickedSuggestion = null;
             for (let i = 0; i < suggestions.length; i++) {
                 const s = suggestions[i];
-                const dist = Math.sqrt(Math.pow(x - s.x, 2) + Math.pow(y - s.y, 2));
-                if (dist < 20) {
+                if (distSq(x, y, s.x, s.y) < minDistSq) {
                     clickedSuggestion = i;
                     break;
                 }
             }
             
+            // Track newly added stitches for incremental draw
+            const newStitches = [];
+            
             if (clickedSuggestion !== null) {
                 const suggestion = suggestions[clickedSuggestion];
-                stitches.push({
-                    x: suggestion.x,
-                    y: suggestion.y,
-                    stitch: suggestion.stitch,
-                    color: suggestion.color,
-                    size: suggestion.size,
-                    rotation: suggestion.rotation
-                });
+                const newS = {
+                    x: suggestion.x, y: suggestion.y,
+                    stitch: suggestion.stitch, color: suggestion.color,
+                    size: suggestion.size, rotation: suggestion.rotation
+                };
+                stitches.push(newS);
+                spatialInsert(newS.x, newS.y);
+                newStitches.push(newS);
                 suggestions.splice(clickedSuggestion, 1);
+                // Suggestion removed = need full redraw to remove green circle
+                isDragDrawing = false;
             } else {
-                // Check if point is too close to existing stitches
-                const minDistance = 20;
-                let tooClose = false;
-                
-                for (let i = 0; i < stitches.length; i++) {
-                    const stitch = stitches[i];
-                    const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
-                    if (dist < minDistance) {
-                        tooClose = true;
-                        break;
-                    }
-                }
-                
-                // Only add stitch if it's not too close to existing stitches
-                if (!tooClose) {
-                const points = applySymmetry(x, y);
-                
-                points.forEach(point => {
-                        // Check distance for each symmetry point as well
-                        let pointTooClose = false;
-                        for (let i = 0; i < stitches.length; i++) {
-                            const stitch = stitches[i];
-                            const dist = Math.sqrt(Math.pow(point.x - stitch.x, 2) + Math.pow(point.y - stitch.y, 2));
-                            if (dist < minDistance) {
-                                pointTooClose = true;
-                                break;
-                            }
-                        }
-                        
-                        if (!pointTooClose) {
+                // Use spatial hash for O(1) proximity check
+                if (!spatialHasNearby(x, y, minDistSq)) {
+                    const points = applySymmetry(x, y);
                     const center = getCenter();
-                    const angleFromCenter = Math.atan2(point.y - center.y, point.x - center.x);
-                    const rotationTowardsCenter = (angleFromCenter * 180 / Math.PI) + 180 + currentRotation;
+                
+                    points.forEach(point => {
+                        // Spatial hash proximity check for each symmetry point
+                        if (!spatialHasNearby(point.x, point.y, minDistSq)) {
+                            const angleFromCenter = Math.atan2(point.y - center.y, point.x - center.x);
+                            const rotationTowardsCenter = (angleFromCenter * 180 / Math.PI) + 180 + currentRotation;
                     
-                    stitches.push({
-                        x: point.x,
-                        y: point.y,
-                        stitch: currentStitch,
-                        color: currentColor,
-                        size: currentStitchSize,
-                        rotation: rotationTowardsCenter
-                    });
+                            const newS = {
+                                x: point.x, y: point.y,
+                                stitch: currentStitch, color: currentColor,
+                                size: currentStitchSize, rotation: rotationTowardsCenter
+                            };
+                            stitches.push(newS);
+                            spatialInsert(newS.x, newS.y);
+                            newStitches.push(newS);
                         }
-                });
+                    });
                 }
             }
             
-            analyzePattern();
-            redrawStitches();
-            updateRoundsList();
+            if (newStitches.length === 0) return; // Nothing added
+            
+            // INCREMENTAL DRAWING: during drag, just draw new stitches on top
+            // instead of full redraw (which is O(n) for all stitches)
+            if (isDragDrawing) {
+                for (const s of newStitches) {
+                    drawStitch(s.x, s.y, s.stitch, s.color, false, s.size || 22, s.rotation || 0);
+                }
+            } else {
+                scheduleRedraw();
+            }
+            
+            // Debounce expensive non-visual ops
+            debouncedAnalyzePattern();
+            debouncedUpdateRoundsList();
         }
 
         function findStitchesInSelection() {
@@ -3431,7 +3613,7 @@
                 stitches[movingSingleStitch.index].y = movingSingleStitch.originalY + dy;
             }
             
-            redrawStitches();
+            scheduleRedraw();
         }
         
         function getSelectionCenter() {
@@ -3469,10 +3651,7 @@
                     const stitch = stitches[moveData.index];
                     const originalAngle = Math.atan2(moveData.originalY - center.y, moveData.originalX - center.x);
                     const newAngle = originalAngle + (deltaAngle * Math.PI / 180);
-                    const distance = Math.sqrt(
-                        Math.pow(moveData.originalX - center.x, 2) + 
-                        Math.pow(moveData.originalY - center.y, 2)
-                    );
+                    const distance = Math.sqrt(distSq(moveData.originalX, moveData.originalY, center.x, center.y));
                     
                     stitch.x = center.x + Math.cos(newAngle) * distance;
                     stitch.y = center.y + Math.sin(newAngle) * distance;
@@ -3492,23 +3671,21 @@
                 });
             }
             
-            redrawStitches();
+            scheduleRedraw();
         }
         
         function handleEraseMode(x, y) {
             const stitches = getCurrentStitches();
             
             for (let i = stitches.length - 1; i >= 0; i--) {
-                const s = stitches[i];
-                const dist = Math.sqrt((s.x - x) ** 2 + (s.y - y) ** 2);
-                if (dist < 20) {
+                if (distSq(x, y, stitches[i].x, stitches[i].y) < 400) {
                     stitches.splice(i, 1);
                 }
             }
             
-            analyzePattern();
-            redrawStitches();
-            updateRoundsList();
+            debouncedAnalyzePattern();
+            scheduleRedraw();
+            debouncedUpdateRoundsList();
         }
 
         function drawLine(x1, y1, x2, y2) {
@@ -3645,8 +3822,7 @@
                         
                         let tooClose = false;
                         for (let stitch of stitches) {
-                            const dist = Math.sqrt(Math.pow(x - stitch.x, 2) + Math.pow(y - stitch.y, 2));
-                            if (dist < 20) {
+                            if (distSq(x, y, stitch.x, stitch.y) < 400) {
                                 tooClose = true;
                                 break;
                             }
@@ -3714,6 +3890,7 @@
             layers.push(newLayer);
             currentLayerIndex = layers.length - 1;
             suggestions = [];
+            invalidateLayerCache();
             
             updateRoundsList();
             redrawStitches();
@@ -3723,6 +3900,7 @@
             if (currentLayerIndex > 0) {
                 currentLayerIndex--;
                 suggestions = [];
+                invalidateLayerCache();
                 analyzePattern();
                 updateRoundsList();
                 redrawStitches();
@@ -3733,6 +3911,7 @@
             if (currentLayerIndex < layers.length - 1) {
                 currentLayerIndex++;
                 suggestions = [];
+                invalidateLayerCache();
                 analyzePattern();
                 updateRoundsList();
                 redrawStitches();
@@ -3741,6 +3920,7 @@
 
         function toggleShowAllLayers() {
             showAllLayers = document.getElementById('showAllLayers').checked;
+            invalidateLayerCache();
             redrawStitches();
         }
 
@@ -3760,8 +3940,39 @@
             currentColor = document.getElementById('propColor').value;
         }
 
+        function changeCanvasSize() {
+            const newSize = parseInt(document.getElementById('propCanvasSize').value);
+            const oldSize = canvas.width;
+            if (newSize === oldSize) return;
+            
+            // Scale stitch positions proportionally
+            const ratio = newSize / oldSize;
+            layers.forEach(layer => {
+                layer.stitches.forEach(s => {
+                    s.x *= ratio;
+                    s.y *= ratio;
+                });
+            });
+            suggestions.forEach(s => {
+                s.x *= ratio;
+                s.y *= ratio;
+            });
+            
+            canvas.width = newSize;
+            canvas.height = newSize;
+            canvas.style.width = newSize + 'px';
+            canvas.style.height = newSize + 'px';
+            
+            gridDirty = true;
+            invalidateLayerCache();
+            analyzePattern();
+            updateRoundsList();
+            redrawStitches();
+        }
+        
         function changeShape() {
             currentShape = document.getElementById('propShape').value;
+            gridDirty = true; // Invalidate grid cache
             redrawStitches();
         }
 
@@ -3819,6 +4030,7 @@
             
             // Reset to first layer
             currentLayerIndex = 0;
+            invalidateLayerCache();
             
             // Update UI
             updateRoundsList();
@@ -3851,6 +4063,8 @@
                         currentShape = data.shape;
                         canvas.width = data.size;
                         canvas.height = data.size;
+                        canvas.style.width = data.size + 'px';
+                        canvas.style.height = data.size + 'px';
                         
                         if (data.layers) {
                             layers = data.layers;
@@ -3861,6 +4075,16 @@
                         suggestions = [];
                         
                         document.getElementById('propShape').value = currentShape;
+                        // Update canvas size dropdown to closest option
+                        const sizeSelect = document.getElementById('propCanvasSize');
+                        if (sizeSelect) {
+                            const options = [...sizeSelect.options].map(o => parseInt(o.value));
+                            const closest = options.reduce((a, b) => Math.abs(b - data.size) < Math.abs(a - data.size) ? b : a);
+                            sizeSelect.value = closest;
+                        }
+                        gridDirty = true; // Invalidate grid cache after loading
+                        invalidateLayerCache();
+                        clearSpriteCache();
                         
                         analyzePattern();
                         updateRoundsList();
@@ -4066,7 +4290,8 @@
                 localStorage.setItem('darkMode', 'true');
             }
             
-            // Redraw canvas to update grid colors
+            // Invalidate grid cache and redraw canvas to update grid colors
+            gridDirty = true;
             redrawStitches();
         }
 

@@ -2,8 +2,8 @@
 // MAIN - Peamine entry point, ühendab kõik moodulid
 // ============================================
 
-import { initCanvas, setupWheelZoom, preloadSvgSymbols } from './canvas.js';
-import { initUI, initDarkMode, updateAlignmentButtons } from './ui.js';
+import { initCanvas, setupWheelZoom, preloadSvgSymbols, clearAllSprites } from './canvas.js';
+import { initUI, initDarkMode } from './ui.js';
 import { state } from './state.js';
 import { setToolMode, handleDrawMode, handleEraseMode, drawLine, findStitchesInSelection, isPointInSelection, handleMoveSingleStitch, handleMoveSelectedStitches, getSelectionCenter, saveStateAfterMove, hasChangesBeenMade, clearChangesFlag, markChangesMade, handleRotateViaHandle, handleResizeViaHandle, addNote, editNote, deleteNote, getNoteAtPoint } from './tools.js';
 import { getHandleAtPoint, getSelectedStitchesCenter } from './canvas.js';
@@ -14,36 +14,28 @@ import { getCurrentStitches } from './state.js';
 import { undo, redo } from './history.js';
 
 /**
- * Teisendab hiire/touch koordinaadid canvas'i koordinaatideks, arvestades zoom taset
- * Arvestab CSS transform scale ja transform-origin center center
+ * Teisendab hiire/touch koordinaadid canvas'i koordinaatideks.
+ * Arvestab CSS transform scale, CSS suuruse ja canvas'i sisemist resolutsiooni.
+ * getBoundingClientRect() tagastab visuaalse suuruse (sh transform), seega
+ * lihtne proportsioon (mousePos / visualSize * canvasSize) on alati korrektne.
  */
 function getCanvasCoordinates(e) {
     const canvas = getCanvas();
     if (!canvas) return { x: 0, y: 0 };
     
     const rect = canvas.getBoundingClientRect();
-    const scale = state.zoomLevel || 1.0;
     
     // Toeta nii mouse kui touch evente
     const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
     const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
     
-    // Hiire/touch koordinaadid suhtes canvas'i bounding rect'i (scaled space)
+    // Hiire positsioon visuaalse rect'i suhtes (0..rect.width)
     const mouseX = clientX - rect.left;
     const mouseY = clientY - rect.top;
     
-    // Canvas'i keskpunkt scaled rect'is
-    const scaledCenterX = rect.width / 2;
-    const scaledCenterY = rect.height / 2;
-    
-    // Teisenda keskpunkti suhtes (transform-origin center center)
-    const offsetX = mouseX - scaledCenterX;
-    const offsetY = mouseY - scaledCenterY;
-    
-    // Jagage zoom tasemega, et saada canvas'i koordinaadid keskpunkti suhtes
-    // Siis liida canvas'i keskpunkt
-    const canvasX = (offsetX / scale) + (canvas.width / 2);
-    const canvasY = (offsetY / scale) + (canvas.height / 2);
+    // Teisenda canvas'i sisemisteks koordinaatideks (arvestab nii CSS suurust kui transform'i)
+    const canvasX = (mouseX / rect.width) * canvas.width;
+    const canvasY = (mouseY / rect.height) * canvas.height;
     
     return { x: canvasX, y: canvasY };
 }
@@ -53,28 +45,29 @@ function getCanvasCoordinates(e) {
 initDarkMode();
 
 // Initialize UI and Canvas when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', async () => {
-        // Preload SVG symbols first
-        await preloadSvgSymbols();
-        initUI();
-        const canvas = document.getElementById('canvas');
-        if (canvas) {
-            initCanvas(canvas);
-        }
-        setupEventListeners();
+function startup() {
+    initUI();
+    const canvas = document.getElementById('canvas');
+    if (canvas) {
+        initCanvas(canvas);
+    }
+    setupEventListeners();
+    
+    // Load SVG symbols in background (non-blocking)
+    // Canvas API fallback renders immediately; SVGs upgrade sprites when ready
+    preloadSvgSymbols().then(() => {
+        // Clear sprite cache so sprites get recreated with SVG versions
+        clearAllSprites();
+        redrawStitches();
+    }).catch(() => {
+        // SVG loading failed — Canvas API fallback will be used
     });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startup);
 } else {
-    (async () => {
-        // Preload SVG symbols first
-        await preloadSvgSymbols();
-        initUI();
-        const canvas = document.getElementById('canvas');
-        if (canvas) {
-            initCanvas(canvas);
-        }
-        setupEventListeners();
-    })();
+    startup();
 }
 
 function setupEventListeners() {
@@ -179,7 +172,6 @@ function setupEventListeners() {
                             state.selectedStitches.push(clickedStitchIndex);
                         }
                         redrawStitches();
-                        updateAlignmentButtons();
                     } else {
                         // If clicking on already selected stitch or in bounding box, prepare to move
                         if ((isSelected || isInBoundingBox) && state.selectedStitches.length > 0) {
@@ -200,7 +192,6 @@ function setupEventListeners() {
                             // Select only this stitch
                             state.selectedStitches = [clickedStitchIndex];
                             redrawStitches();
-                            updateAlignmentButtons();
                         }
                     }
                 } else if (isInBoundingBox) {
@@ -222,7 +213,6 @@ function setupEventListeners() {
                     if (!e.shiftKey && state.selectedStitches.length > 0) {
                         state.selectedStitches = [];
                         redrawStitches();
-                        updateAlignmentButtons();
                     }
                 }
             }
@@ -265,8 +255,14 @@ function setupEventListeners() {
         }
     });
     
-    // Mouse move
+    // Mouse move (throttled via requestAnimationFrame)
+    let mouseMoveRafPending = false;
     canvas.addEventListener('mousemove', (e) => {
+        if (mouseMoveRafPending) return;
+        mouseMoveRafPending = true;
+        
+        requestAnimationFrame(() => {
+        mouseMoveRafPending = false;
         const coords = getCanvasCoordinates(e);
         const x = coords.x;
         const y = coords.y;
@@ -355,6 +351,7 @@ function setupEventListeners() {
                 canvas.style.cursor = 'crosshair';
             }
         }
+        }); // end requestAnimationFrame
     });
     
     // Mouse up
